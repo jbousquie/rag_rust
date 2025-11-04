@@ -1,0 +1,71 @@
+# Description Technique du Projet RAG-Proxy en Rust
+
+## 1. Objectif du Projet
+
+Ce projet vise à créer un service de RAG (Retrieval-Augmented Generation) performant et sécurisé, entièrement développé en Rust. Le service a deux fonctions principales :
+
+1.  **Indexer des documents** : Analyser une collection de documents (fichiers texte, PDF, DOCX, etc.), les découper, générer des représentations vectorielles (embeddings) de chaque fragment, et les stocker dans une base de données vectorielle (Qdrant).
+2.  **Exposer un proxy RAG** : Mettre en place un serveur HTTP qui accepte des requêtes (questions), recherche les informations les plus pertinentes dans la base de données vectorielle, et utilise ces informations comme contexte pour interroger un grand modèle de langage (LLM) distant afin de générer une réponse précise et contextuellement informée.
+
+L'objectif est de fournir une solution robuste qui peut être facilement intégrée dans des architectures existantes, en tirant parti de la sécurité et des performances de Rust.
+
+## 2. Architecture Générale
+
+Le système est divisé en deux processus distincts :
+
+-   **Le Binaire d'Indexation (`index_documents`)** : Un outil en ligne de commande qui parcourt le répertoire `data_sources/`, traite les fichiers qu'il contient et peuple la base de données Qdrant. Ce processus est destiné à être exécuté manuellement ou de manière planifiée lorsque les sources de données sont mises à jour.
+-   **Le Serveur Proxy RAG (`rag_proxy`)** : Un service HTTP long-running qui expose un point d'accès (endpoint) pour les requêtes des utilisateurs.
+
+Le flux d'une requête utilisateur est le suivant :
+1.  Un client envoie une requête HTTP (contenant une question) au serveur `rag_proxy`.
+2.  Le serveur transforme la question en un vecteur d'embedding.
+3.  Il utilise ce vecteur pour interroger la base de données Qdrant et récupérer les fragments de documents les plus similaires (le contexte).
+4.  Il construit une invite (prompt) enrichie, combinant la question originale de l'utilisateur et le contexte récupéré.
+5.  Il envoie cette invite au service LLM distant.
+6.  La réponse du LLM est renvoyée au client.
+
+## 3. Organisation du Code
+
+Le projet est structuré en modules clairs pour séparer les responsabilités :
+
+-   `Cargo.toml` : Définit les métadonnées du projet et ses dépendances (axum, reqwest, qdrant-client, tokio, etc.).
+-   `src/main.rs` : Point d'entrée de l'application. Il est responsable de parser les arguments de la ligne de commande pour lancer soit le processus d'indexation, soit le serveur proxy.
+-   `src/lib.rs` : Contient du code partagé et des utilitaires qui peuvent être utilisés par les deux binaires (par exemple, la configuration, la gestion des erreurs).
+
+### `src/common/`
+-   `mod.rs` : Définit les types de données, les structures d'erreur personnalisées (`Error`), les constantes et toute autre logique partagée à travers les modules `indexing` et `rag_proxy`.
+
+### `src/indexing/`
+Ce module gère tout le processus de transformation des documents bruts en vecteurs stockés.
+-   `mod.rs` : Déclare les sous-modules et expose la fonction principale d'orchestration de l'indexation.
+-   `loader.rs` : Fonctions pour charger le contenu de différents types de fichiers (ex: `.txt`, `.pdf`, `.docx`) depuis le répertoire `data_sources/`.
+-   `chunker.rs` : Logique pour découper les textes chargés en fragments (chunks) de taille gérable, en utilisant des stratégies pour préserver le sens sémantique.
+-   `indexer.rs` : Orchestre la génération des embeddings pour chaque fragment en appelant le LLM et stocke ensuite les paires (fragment, vecteur) dans la collection Qdrant.
+
+### `src/rag_proxy/`
+Ce module contient toute la logique du serveur HTTP.
+-   `mod.rs` : Déclare les sous-modules et expose la fonction principale pour démarrer le serveur.
+-   `server.rs` : Configure et lance le serveur web `axum`, définit les routes et attache les gestionnaires (handlers).
+-   `handler.rs` : Contient la logique principale de traitement d'une requête HTTP. C'est ici que le flux RAG (embedding, recherche, appel LLM) est exécuté.
+-   `retriever.rs` : Gère spécifiquement l'interaction avec Qdrant. Il prend une question, la vectorise et effectue la recherche de similarité pour récupérer le contexte.
+-   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
+
+### `data_sources/`
+-   Ce répertoire contient les documents bruts qui serviront de base de connaissances pour le RAG. Il est ignoré par Git par défaut (sauf un fichier `.gitkeep`).
+
+### `binaries/`
+-   Ce répertoire est destiné à contenir les exécutables compilés (`index_documents` et `rag_proxy`). Il devrait être ajouté au `.gitignore`.
+
+## 4. Infrastructure Externe et Intégration LLM
+
+Le proxy RAG ne contient pas de LLM lui-même, mais interagit avec un service externe via une API HTTP. La configuration de cette infrastructure est la suivante :
+
+-   **Serveur LLM** : Le modèle de langage utilisé est `Qwen3-Coder30b`.
+-   **Fournisseur de Service** : Ce modèle est servi par une instance d'**Ollama**.
+-   **Format d'API** : L'instance Ollama est configurée pour exposer une **API compatible avec celle d'OpenAI**. Cela permet d'utiliser des clients HTTP standards ou des bibliothèques comme `openai-rs` pour communiquer avec le modèle.
+-   **Reverse Proxy et Sécurité** : Un serveur web **Apache** est placé en tant que reverse proxy devant l'instance Ollama.
+-   **Rôle d'Apache** :
+    1.  **Terminaison de la connexion** : Il peut gérer le HTTPS, bien que l'instance Ollama soit exposée en HTTP en interne.
+    2.  **Authentification** : Apache est chargé de **gérer l'authentification par clé d'API**. Toute requête entrante doit contenir une clé d'API valide (par exemple, dans un en-tête `Authorization: Bearer VOTRE_CLÉ`). Apache valide cette clé avant de transmettre la requête à Ollama.
+
+Le module `llm_caller.rs` dans le code Rust doit donc être implémenté pour inclure cette clé d'API dans chaque requête envoyée au LLM. La clé elle-même doit être gérée de manière sécurisée via des variables d'environnement ou un système de gestion de secrets.
