@@ -1,0 +1,24 @@
+[package]
+name = "rag_rust"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "index_documents"
+path = "src/indexing/main.rs" # Ou un point d'entrée spécifique si vous préférez
+
+[[bin]]
+name = "rag_proxy"
+path = "src/rag_proxy/main.rs" # Ou juste src/main.rs avec une logique de dispatch
+
+[dependencies]
+axum = { version = "0.8.6", features = ["macros"] } # Exemple de version
+tokio = { version = "1.0", features = ["full"] }
+docx-rs = "0.4" # Exemple de version
+reqwest = { version = "0.12.24", features = ["json"] }
+qdrant-client = "1.9" # Exemple de version
+openai-rs = "0.1.1" # Exemple de version, vérifiez la compatibilité avec votre reverse-proxy
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+text-splitter = "0.28.0"
+pdf = "0.9.0"

@@ -1,0 +1,1 @@
+// Types, constantes, erreurs partagées
