@@ -14,6 +14,16 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
 
 ## Prérequis
+# Fichier de Configuration
+
+Le projet utilise un fichier central de configuration `config.toml` qui permet de définir toutes les options de configuration du proxy RAG. Ce fichier contient les paramètres suivants :
+
+- Configuration des sources de données (chemin vers le dossier des documents)
+- Paramètres du proxy RAG (port et host de l'écoute)
+- Configuration de l'API LLM (endpoint, modèle, clé d'API)
+- Configuration de Qdrant (host, port, clé d'API)
+
+Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
 
 *   **Rust :** [Installez Rust](https://www.rust-lang.org/tools/install) (version 1.70.0 ou supérieure recommandée).
 *   **Ollama :** Doit être installé et en cours d'exécution sur la machine locale. Le modèle `nomic-embed-text` doit être disponible :

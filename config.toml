@@ -1,0 +1,25 @@
+# Configuration du projet RAG-Proxy
+
+[data_sources]
+path = "data_sources"
+
+[indexing]
+# Chemin vers le répertoire contenant les fichiers à indexer
+path = "data_sources"
+
+[rag_proxy]
+# Paramètres du proxy RAG
+port = 3000
+host = "127.0.0.1"
+
+[llm]
+# Configuration de l'API LLM
+endpoint = "https://llm.iut-rodez.fr:8383/v1"
+model = "qwen3coder"
+api_key = ""
+
+[qdrant]
+# Configuration de Qdrant
+host = "localhost"
+port = 6333
+api_key = ""
