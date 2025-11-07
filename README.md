@@ -8,10 +8,19 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 
 *   **Proxy RAG Local :** Intercepte les requêtes du client, effectue une recherche RAG, puis transmet la requête enrichie au LLM distant.
 *   **Indexation Locale :** Lit et indexe des documents (formats texte, PDF, DOCX, etc.) dans une base de connaissances vectorielle locale.
-*   **Génération d'Embeddings Locaux :** Utilise une instance [Ollama](https://ollama.ai/) locale (modèle `nomic-embed-text`) pour générer les embeddings nécessaires à l'indexation et à la recherche.
+*   **Génération d'Embeddings Locaux :** Utilise une instance [Ollama](https://ollama.ai/) locale (modèle `Qwen3-Embeddings`) pour générer les embeddings nécessaires à l'indexation et à la recherche.
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
+
+## Changements Réalisés pour la Compilation
+
+Les modifications suivantes ont été apportées pour permettre la compilation du projet :
+
+1. **Correction des fonctions main asynchrones** : Les fonctions `main` dans `src/indexing/main.rs` et `src/rag_proxy/main.rs` ont été converties de `async` à `sync` pour éviter les erreurs de compilation liées à l'utilisation incorrecte de `async` dans les binaires.
+2. **Correction des imports de modules** : Les imports dans `src/indexing/main.rs` ont été mis à jour pour utiliser le bon chemin de module (`rag_rust::common::Config` au lieu de `crate::common::Config`).
+3. **Création du module commun** : Le module `src/common/mod.rs` a été créé pour centraliser la structure `Config` et les types partagés.
+4. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
 
 ## Prérequis
 # Fichier de Configuration
@@ -26,10 +35,10 @@ Le projet utilise un fichier central de configuration `config.toml` qui permet d
 Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
 
 *   **Rust :** [Installez Rust](https://www.rust-lang.org/tools/install) (version 1.70.0 ou supérieure recommandée).
-*   **Ollama :** Doit être installé et en cours d'exécution sur la machine locale. Le modèle `nomic-embed-text` doit être disponible :
+*   **Ollama :** Doit être installé et en cours d'exécution sur la machine locale. Le modèle `Qwen3-Embeddings` doit être disponible :
     ```bash
     curl -fsSL https://ollama.ai/install.sh | sh
-    ollama pull nomic-embed-text
+    ollama pull Qwen3-Embeddings
     ```
 *   **Base Vectorielle :** (Pour l'instant, Qdrant est prévu) [Installez Qdrant localement](https://github.com/qdrant/qdrant?tab=readme-ov-file#quick-start) (soit via binaire, soit via Docker).
     *   *Exemple avec binaire :* Téléchargez la dernière release depuis [https://github.com/qdrant/qdrant/releases](https://github.com/qdrant/qdrant/releases), extrayez et exécutez `./qdrant`.

@@ -1,4 +1,4 @@
-pub async fn main() {
+pub fn main() {
     println!("Starting RAG proxy server...");
 
     // Simple test - just print a message

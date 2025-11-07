@@ -1,7 +1,7 @@
-use crate::common::Config;
+use rag_rust::common::Config;
 use std::path::Path;
 
-pub async fn main() {
+pub fn main() {
     println!("Starting document indexing...");
 
     // Load configuration
