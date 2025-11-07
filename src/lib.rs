@@ -1,3 +1,8 @@
+//! Main library crate for the RAG proxy application.
+//!
+//! This crate contains all the shared functionality and configuration
+//! used by both the indexing binary and the RAG proxy server.
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -42,6 +47,10 @@ pub struct QdrantConfig {
 }
 
 impl Config {
+    /// Loads configuration from the config.toml file
+    /// 
+    /// # Returns
+    /// * `Result<Config, Box<dyn std::error::Error>>` - Configuration object if successful, error otherwise
     pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
         let config_content = fs::read_to_string("config.toml")?;
         let config: Config = toml::from_str(&config_content)?;

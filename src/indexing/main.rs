@@ -1,3 +1,9 @@
+//! Main indexing binary for processing documents and generating embeddings.
+//!
+//! This binary is responsible for reading documents from the data_sources directory,
+//! processing them through the indexing pipeline (chunking, embedding generation,
+//! and storage in Qdrant), and tracking which files have been processed.
+
 use std::fs;
 use std::path::Path;
 use rag_rust::Config;

@@ -1,5 +1,17 @@
-// Découpage (text-splitter-rs ou logique manuelle)
+//! Text chunking module for splitting text into manageable pieces.
+//!
+//! This module provides functionality to split text content into chunks
+//! of a specified size, which is useful for processing large documents
+//! in smaller, manageable pieces for indexing and embedding generation.
 
+/// Splits text content into chunks of a specified size
+/// 
+/// # Arguments
+/// * `text` - The text to be chunked
+/// * `chunk_size` - Maximum size of each chunk in characters
+/// 
+/// # Returns
+/// * `Vec<String>` - A vector of text chunks
 pub fn chunk_text(text: &str, chunk_size: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     
