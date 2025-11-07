@@ -2,7 +2,7 @@
 
 Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple en **Rust**. Son objectif est de servir d'intermédiaire entre un client (comme un CLI ou un agent IA comme Zed) et un LLM distant (dans votre cas, une instance Qwen3-Coder derrière un reverse-proxy OpenAI API). Le proxy récupère des informations pertinentes à partir d'une base de connaissances vectorielle locale avant d'envoyer la requête enrichie au LLM distant, améliorant ainsi la pertinence des réponses.
 
-> **Note :** Ce projet est conçu comme un **Proof of Concept (PoC)** pour tester l'approche RAG en Rust, en remplacement d'une implémentation Python existante.
+> **Note :** Ce projet est conçu comme un **Proof of Concept (PoC)** pour tester l'approche RAG en Rust, en remplacement d'une [implémentation Python](https://github.com/jbousquie/proxy_rag) existante.
 
 ## Fonctionnalités
 
@@ -12,17 +12,6 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
-
-## Changements Réalisés pour la Compilation
-
-Les modifications suivantes ont été apportées pour permettre la compilation du projet :
-
-1. **Correction des fonctions main asynchrones** : Les fonctions `main` dans `src/indexing/main.rs` et `src/rag_proxy/main.rs` ont été converties de `async` à `sync` pour éviter les erreurs de compilation liées à l'utilisation incorrecte de `async` dans les binaires.
-2. **Correction des imports de modules** : Les imports dans `src/indexing/main.rs` ont été mis à jour pour utiliser le bon chemin de module (`rag_rust::common::Config` au lieu de `crate::common::Config`).
-3. **Création du module commun** : Le module `src/common/mod.rs` a été créé pour centraliser la structure `Config` et les types partagés.
-4. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
-5. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
-6. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
 
 ## Prérequis
 # Fichier de Configuration
@@ -71,7 +60,8 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
 │   │   ├── mod.rs
 │   │   ├── loader.rs   # Chargement des fichiers
 │   │   ├── chunker.rs  # Découpage du texte
-│   │   └── indexer.rs  # Génération embeddings (Ollama) + Stockage (Qdrant)
+│   │   ├── indexer.rs  # Génération embeddings (Ollama) + Stockage (Qdrant)
+│   │   └── file_tracker.rs # Suivi des fichiers indexés
 │   ├── rag_proxy/      # Logique du serveur proxy RAG
 │   │   ├── mod.rs
 │   │   ├── server.rs   # Démarrage du serveur axum

@@ -56,6 +56,7 @@ Ce module gère tout le processus de transformation des documents bruts en vecte
 -   `loader.rs` : Fonctions pour charger le contenu de différents types de fichiers (ex: `.txt`, `.pdf`, `.docx`) depuis le répertoire `data_sources/`.
 -   `chunker.rs` : Logique pour découper les textes chargés en fragments (chunks) de taille gérable, en utilisant des stratégies pour préserver le sens sémantique.
 -   `indexer.rs` : Orchestre la génération des embeddings pour chaque fragment en appelant le LLM et stocke ensuite les paires (fragment, vecteur) dans la collection Qdrant.
+-   `file_tracker.rs` : Gère le suivi des fichiers indexés pour éviter de re-indexer les fichiers non modifiés.
 
 ### `src/rag_proxy/`
 Ce module contient toute la logique du serveur HTTP.
