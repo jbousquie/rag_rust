@@ -21,6 +21,8 @@ Les modifications suivantes ont été apportées pour permettre la compilation d
 2. **Correction des imports de modules** : Les imports dans `src/indexing/main.rs` ont été mis à jour pour utiliser le bon chemin de module (`rag_rust::common::Config` au lieu de `crate::common::Config`).
 3. **Création du module commun** : Le module `src/common/mod.rs` a été créé pour centraliser la structure `Config` et les types partagés.
 4. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
+5. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
+6. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
 
 ## Prérequis
 # Fichier de Configuration

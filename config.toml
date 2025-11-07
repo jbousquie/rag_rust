@@ -7,6 +7,9 @@ path = "data_sources"
 # Chemin vers le répertoire contenant les fichiers à indexer
 path = "data_sources"
 
+# Chemin vers le fichier de suivi des fichiers indexés
+file_tracker_path = "index_tracker.json"
+
 [rag_proxy]
 # Paramètres du proxy RAG
 port = 3000

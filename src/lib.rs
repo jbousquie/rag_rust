@@ -18,6 +18,7 @@ pub struct DataSourcesConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexingConfig {
     pub path: String,
+    pub file_tracker_path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,3 +50,4 @@ impl Config {
 }
 
 pub mod common;
+pub mod indexing;
