@@ -22,6 +22,7 @@ Le projet utilise un fichier central de configuration `config.toml` qui permet d
 - Paramètres du proxy RAG (port et host de l'écoute)
 - Configuration de l'API LLM (endpoint, modèle, clé d'API)
 - Configuration de Qdrant (host, port, clé d'API)
+- Configuration de l'indexation (taille des fragments de texte)
 
 Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
 

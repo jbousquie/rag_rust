@@ -24,6 +24,7 @@ pub struct DataSourcesConfig {
 pub struct IndexingConfig {
     pub path: String,
     pub file_tracker_path: String,
+    pub chunk_size: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

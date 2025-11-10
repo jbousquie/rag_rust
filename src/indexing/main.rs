@@ -50,7 +50,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let content = loader::load_file_sync(&config, &file_name)?;
 
         // Chunk content
-        let chunks = chunker::chunk_text(&content, 512);
+        let chunks = chunker::chunk_text(&content, config.indexing.chunk_size);
 
         // Index chunks
         indexer::index_chunks(&config, &chunks, &file_name)?;
