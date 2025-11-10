@@ -68,8 +68,6 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
 │   │   ├── handler.rs  # Gestion d'une requête : Recherche RAG -> Appel LLM -> Réponse
 │   │   ├── retriever.rs # Recherche dans Qdrant
 │   │   └── llm_caller.rs # Appel au LLM distant
-│   └── common/         # Types, constantes partagées
-│       └── mod.rs
 ├── data_sources/       # Dossier source pour les documents à indexer
 └── ...
 

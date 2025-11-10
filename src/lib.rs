@@ -58,5 +58,4 @@ impl Config {
     }
 }
 
-pub mod common;
 pub mod indexing;

@@ -47,9 +47,6 @@ Le projet est structuré en modules clairs pour séparer les responsabilités :
 -   `src/main.rs` : Point d'entrée de l'application. Il est responsable de parser les arguments de la ligne de commande pour lancer soit le processus d'indexation, soit le serveur proxy.
 -   `src/lib.rs` : Contient du code partagé et des utilitaires qui peuvent être utilisés par les deux binaires (par exemple, la configuration, la gestion des erreurs).
 
-### `src/common/`
--   `mod.rs` : Définit les types de données, les structures d'erreur personnalisées (`Error`), les constantes et toute autre logique partagée à travers les modules `indexing` et `rag_proxy`.
-
 ### `src/indexing/`
 Ce module gère tout le processus de transformation des documents bruts en vecteurs stockés.
 -   `mod.rs` : Déclare les sous-modules et expose la fonction principale d'orchestration de l'indexation.
@@ -92,9 +89,8 @@ Les modifications suivantes ont été apportées pour permettre la compilation d
 
 1. **Correction des fonctions main asynchrones** : Les fonctions `main` dans `src/indexing/main.rs` et `src/rag_proxy/main.rs` ont été converties de `async` à `sync` pour éviter les erreurs de compilation liées à l'utilisation incorrecte de `async` dans les binaires.
 2. **Correction des imports de modules** : Les imports dans `src/indexing/main.rs` ont été mis à jour pour utiliser le bon chemin de module (`rag_rust::common::Config` au lieu de `crate::common::Config`).
-3. **Création du module commun** : Le module `src/common/mod.rs` a été créé pour centraliser la structure `Config` et les types partagés.
-4. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
-5. **Mise à jour de la documentation** : Le README.md a été mis à jour pour refléter les changements apportés.
-6. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
-7. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
-6. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
+3. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
+4. **Mise à jour de la documentation** : Le README.md a été mis à jour pour refléter les changements apportés.
+5. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
+6. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
+7. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
