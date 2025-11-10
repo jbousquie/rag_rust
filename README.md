@@ -7,7 +7,11 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 ## Fonctionnalités
 
 *   **Proxy RAG Local :** Intercepte les requêtes du client, effectue une recherche RAG, puis transmet la requête enrichie au LLM distant.
-*   **Indexation Locale :** Lit et indexe des documents (formats texte, PDF, DOCX, etc.) dans une base de connaissances vectorielle locale.
+*   **Indexation Locale :** Lit et indexe des documents (formats texte, PDF, DOCX, etc.) dans une base de connaissances vectorielle locale. Le processus d'indexation :
+    *   Charge les documents depuis le dossier `data_sources/`
+    *   Découpe le contenu en fragments (chunks) de taille configurable
+    *   Génère des embeddings pour chaque fragment en appelant Ollama
+    *   Stocke les fragments et leurs embeddings dans Qdrant
 *   **Génération d'Embeddings Locaux :** Utilise une instance [Ollama](https://ollama.ai/) locale (modèle `Qwen3-Embeddings`) pour générer les embeddings nécessaires à l'indexation et à la recherche.
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
