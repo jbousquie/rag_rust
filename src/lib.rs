@@ -25,6 +25,7 @@ pub struct IndexingConfig {
     pub path: String,
     pub file_tracker_path: String,
     pub chunk_size: usize,
+    pub embeddings_chunk_size: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,7 +50,7 @@ pub struct QdrantConfig {
 
 impl Config {
     /// Loads configuration from the config.toml file
-    /// 
+    ///
     /// # Returns
     /// * `Result<Config, Box<dyn std::error::Error>>` - Configuration object if successful, error otherwise
     pub fn load() -> Result<Config, Box<dyn std::error::Error>> {

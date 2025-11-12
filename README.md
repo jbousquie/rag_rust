@@ -103,6 +103,18 @@ cargo run --bin rag_proxy
 ```
 Configurez votre client (CLI, Zed, etc.) pour qu'il envoie ses requêtes au serveur proxy démarré (par exemple, http://localhost:3000 si axum écoute sur ce port).
 
+## Configuration
+
+Le projet utilise un fichier central de configuration `config.toml` qui permet de définir toutes les options de configuration du proxy RAG. Ce fichier contient les paramètres suivants :
+
+- Configuration des sources de données (chemin vers le dossier des documents)
+- Paramètres du proxy RAG (port et host de l'écoute)
+- Configuration de l'API LLM (endpoint, modèle, clé d'API)
+- Configuration de Qdrant (host, port, clé d'API)
+- Configuration de l'indexation (taille des fragments de texte, taille des lots pour les embeddings)
+
+Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
+
 ## Étapes Suivantes / Extensibilité
 
 * Re-ranking : Grâce à l'utilisation de Qdrant, l'intégration future de fonctionnalités de re-ranking natives est possible.

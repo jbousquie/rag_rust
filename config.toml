@@ -13,6 +13,9 @@ file_tracker_path = "index_tracker.json"
 # Taille des fragments de texte (en caractères)
 chunk_size = 512
 
+# Taille des lots pour les embeddings (nombre de chunks par requête)
+embeddings_chunk_size = 10
+
 [rag_proxy]
 # Paramètres du proxy RAG
 port = 3000
