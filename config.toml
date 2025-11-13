@@ -27,6 +27,11 @@ endpoint = "https://llm.iut-rodez.fr:8383/v1"
 model = "qwen3coder"
 api_key = ""
 
+[embeddings]
+# Configuration du serveur local d'embeddings Ollama
+endpoint = "http://localhost:11434"
+model = "qwen3-embedding:8b"
+
 [qdrant]
 # Configuration de Qdrant
 host = "localhost"

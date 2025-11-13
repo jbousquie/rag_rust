@@ -12,6 +12,7 @@ pub struct Config {
     pub indexing: IndexingConfig,
     pub rag_proxy: RagProxyConfig,
     pub llm: LlmConfig,
+    pub embeddings: EmbeddingsConfig,
     pub qdrant: QdrantConfig,
 }
 
@@ -39,6 +40,12 @@ pub struct LlmConfig {
     pub endpoint: String,
     pub model: String,
     pub api_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmbeddingsConfig {
+    pub endpoint: String,
+    pub model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

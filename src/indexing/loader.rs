@@ -24,8 +24,14 @@ pub async fn load_file(config: &Config, filename: &str) -> Result<String, Box<dy
     match file_path.extension().and_then(|ext| ext.to_str()) {
         Some("pdf") => {
             // Load PDF content using pdf-extract crate
-            let content = load_pdf_file(&file_path).await?;
-            Ok(content)
+            match load_pdf_file(&file_path).await {
+                Ok(content) => Ok(content),
+                Err(e) => {
+                    eprintln!("Warning: Failed to read PDF file '{}': {}", filename, e);
+                    // Return empty string instead of panicking
+                    Ok(String::new())
+                }
+            }
         }
         _ => {
             // Default to text file loading
@@ -50,8 +56,14 @@ pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, Box<dyn
     match file_path.extension().and_then(|ext| ext.to_str()) {
         Some("pdf") => {
             // Load PDF content using pdf-extract crate
-            let content = load_pdf_file_sync(&file_path)?;
-            Ok(content)
+            match load_pdf_file_sync(&file_path) {
+                Ok(content) => Ok(content),
+                Err(e) => {
+                    eprintln!("Warning: Failed to read PDF file '{}': {}", filename, e);
+                    // Return empty string instead of panicking
+                    Ok(String::new())
+                }
+            }
         }
         _ => {
             // Default to text file loading
@@ -70,9 +82,10 @@ pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, Box<dyn
 /// * `Result<String, Box<dyn std::error::Error>>` - PDF content if successful, error otherwise
 async fn load_pdf_file(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
     // Extract text from PDF using pdf-extract crate
-    let text = extract_text(file_path.to_str().unwrap())?;
-    
-    Ok(text)
+    match extract_text(file_path.to_str().unwrap()) {
+        Ok(text) => Ok(text),
+        Err(e) => Err(format!("Failed to extract text from PDF: {}", e).into())
+    }
 }
 
 /// Synchronously loads PDF file content using pdf-extract crate
@@ -84,7 +97,8 @@ async fn load_pdf_file(file_path: &Path) -> Result<String, Box<dyn std::error::E
 /// * `Result<String, Box<dyn std::error::Error>>` - PDF content if successful, error otherwise
 fn load_pdf_file_sync(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
     // Extract text from PDF using pdf-extract crate
-    let text = extract_text(file_path.to_str().unwrap())?;
-    
-    Ok(text)
+    match extract_text(file_path.to_str().unwrap()) {
+        Ok(text) => Ok(text),
+        Err(e) => Err(format!("Failed to extract text from PDF: {}", e).into())
+    }
 }
