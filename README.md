@@ -37,7 +37,7 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
     ollama pull Qwen3-Embeddings
     ```
 *   **Base Vectorielle :** (Pour l'instant, Qdrant est prévu) [Installez Qdrant localement](https://github.com/qdrant/qdrant?tab=readme-ov-file#quick-start) (soit via binaire, soit via Docker).
-    *   *Exemple avec binaire :* Téléchargez la dernière release depuis [https://github.com/qdrant/qdrant/releases](https://github.com/qdrant/qdrant/releases), extrayez et exécutez `./qdrant`.
+    *   *Exemple avec binaire :* Téléchargez la dernière version depuis [https://github.com/qdrant/qdrant/releases](https://github.com/qdrant/qdrant/releases), décompressez et exécutez `./qdrant`.
     *   *Exemple avec Docker :*
         ```bash
         docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
@@ -48,7 +48,7 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
 
 *   **Langage :** [Rust](https://www.rust-lang.org/)
 *   **Serveur HTTP :** [axum](https://crates.io/crates/axum)
-*   **Lecture de fichiers :** `tokio::fs`, [mupdf-rs](https://crates.io/crates/mupdf-rs) (PDF), [docx-rs](https://crates.io/crates/docx-rs) (DOCX)
+*   **Lecture de fichiers :** `tokio::fs`, [pdf-extract](https://crates.io/crates/pdf-extract) (PDF), [docx-rs](https://crates.io/crates/docx-rs) (DOCX)
 *   **Découpage de texte (Chunking) :** [text-splitter](https://crates.io/crates/text-splitter) (ou logique manuelle)
 *   **Appels HTTP (Ollama, LLM distant) :** [reqwest](https://crates.io/crates/reqwest)
 *   **Base de Données Vectorielle :** [qdrant-client](https://crates.io/crates/qdrant-client)
@@ -65,7 +65,7 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
 │   │   ├── mod.rs
 │   │   ├── loader.rs   # Chargement des fichiers
 │   │   ├── chunker.rs  # Découpage du texte
-│   │   ├── indexer.rs  # Génération embeddings (Ollama) + Stockage (Qdrant)
+│   │   ├── indexer.rs  # Génération des embeddings (Ollama) + Stockage (Qdrant)
 │   │   └── file_tracker.rs # Suivi des fichiers indexés
 │   ├── rag_proxy/      # Logique du serveur proxy RAG
 │   │   ├── mod.rs
@@ -75,6 +75,7 @@ Le fichier de configuration permet de centraliser la configuration de l'applicat
 │   │   └── llm_caller.rs # Appel au LLM distant
 ├── data_sources/       # Dossier source pour les documents à indexer
 └── ...
+```
 
 ## Installation et Démarrage
 
@@ -89,26 +90,29 @@ Compilez les binaires :
 ```shell
 cargo build --release
 ```
-Indexez vos documents : Placez vos documents dans le dossier data_sources/. Puis, exécutez le binaire d'indexation (à implémenter, par exemple via un argument ou un sous-binaire séparé). Cela enverra les embeddings à Qdrant.
+
+Indexez vos documents : Placez vos documents dans le dossier `data_sources/`. Puis, exécutez le binaire d'indexation :
 ```shell
 cargo run --bin index_documents
 # OU
-# ./target/release/index_documents (si compilé en --release)
+./target/release/index_documents
 ```
-Lancez le serveur proxy : Configurez les variables d'environnement nécessaires (clé API du LLM distant, URL du LLM distant, URL de Qdrant, etc.) dans un fichier .env ou directement dans votre environnement. Ensuite, exécutez le binaire du proxy.
+
+Lancez le serveur proxy : Configurez les variables d'environnement nécessaires (clé API du LLM distant, URL du LLM distant, URL de Qdrant, etc.) dans un fichier `.env` ou directement dans votre environnement. Ensuite, exécutez le binaire du proxy :
 ```shell
 cargo run --bin rag_proxy
 # OU
-# ./target/release/proxy_server (si compilé en --release)
+./target/release/rag_proxy
 ```
-Configurez votre client (CLI, Zed, etc.) pour qu'il envoie ses requêtes au serveur proxy démarré (par exemple, http://localhost:3000 si axum écoute sur ce port).
+
+Configurez votre client (CLI, Zed, etc.) pour qu'il envoie ses requêtes au serveur proxy démarré (par exemple, http://localhost:3000 si le serveur écoute sur ce port).
 
 ## Configuration
 
 Le projet utilise un fichier central de configuration `config.toml` qui permet de définir toutes les options de configuration du proxy RAG. Ce fichier contient les paramètres suivants :
 
 - Configuration des sources de données (chemin vers le dossier des documents)
-- Paramètres du proxy RAG (port et host de l'écoute)
+- Paramètres du proxy RAG (port et host d'écoute)
 - Configuration de l'API LLM (endpoint, modèle, clé d'API)
 - Configuration de Qdrant (host, port, clé d'API)
 - Configuration de l'indexation (taille des fragments de texte, taille des lots pour les embeddings)
