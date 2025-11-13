@@ -98,3 +98,4 @@ Les modifications suivantes ont été apportées pour permettre la compilation d
 6. **Ajout de la configuration de la taille des fragments** : La taille des fragments de texte peut maintenant être configurée via `config.toml` dans la section `[indexing]` avec la clé `chunk_size`.
 7. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
 8. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
+9. **Ajout de la fonctionnalité de génération d'embeddings** : Le module `indexer.rs` a été mis à jour pour envoyer correctement les requêtes d'embedding à l'instance Ollama locale, permettant la génération des embeddings nécessaires à l'indexation.
