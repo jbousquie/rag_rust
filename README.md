@@ -67,6 +67,18 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 └── ...
 ```
 
+## Client Qdrant personnalisé
+
+Le module `qdrant_custom_client.rs` fournit un client personnalisé pour interagir avec Qdrant :
+
+### Méthodes disponibles
+
+- `new(host: String, port: u16, api_key: String)` - Crée une nouvelle instance du client Qdrant
+- `health_check() -> Result<TelemetryResponse, reqwest::Error>` - Vérifie si le serveur Qdrant est en ligne en appelant le endpoint `/telemetry`
+- `health_check_blocking() -> Result<TelemetryResponse, reqwest::Error>` - Version synchrone de health_check
+- `collection_exists(collection_name: &str) -> Result<bool, reqwest::Error>` - Vérifie si une collection existe dans Qdrant en appelant le endpoint `/collections/{collection_name}/exists`
+- `collection_exists_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de collection_exists
+
 ## Installation et Démarrage
 
 Assurez-vous que les prérequis (Rust, Ollama, Qdrant) sont installés et en cours d'exécution.

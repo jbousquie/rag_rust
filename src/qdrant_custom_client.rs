@@ -19,6 +19,16 @@ pub struct TelemetryResponse {
     // Add other fields as needed, but for now we'll just focus on status
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionExistsResponse {
+    pub result: CollectionExistsResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionExistsResult {
+    pub exists: bool,
+}
+
 impl QdrantClient {
     /// Creates a new Qdrant client
     ///
@@ -72,5 +82,46 @@ impl QdrantClient {
 
         let telemetry: TelemetryResponse = response.json()?;
         Ok(telemetry)
+    }
+
+    /// Checks if a collection exists in Qdrant
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to check
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection exists, false otherwise, or error
+    pub async fn collection_exists(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let url = format!("http://{}:{}/collections/{}/exists", self.host, self.port, collection_name);
+
+        let response = client
+            .get(&url)
+            .header("api-key", &self.api_key)
+            .send()
+            .await?;
+
+        let result: CollectionExistsResponse = response.json().await?;
+        Ok(result.result.exists)
+    }
+
+    /// Blocking version of collection_exists for synchronous contexts
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to check
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection exists, false otherwise, or error
+    pub fn collection_exists_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://{}:{}/collections/{}/exists", self.host, self.port, collection_name);
+
+        let response = client
+            .get(&url)
+            .header("api-key", &self.api_key)
+            .send()?;
+
+        let result: CollectionExistsResponse = response.json()?;
+        Ok(result.result.exists)
     }
 }

@@ -4,8 +4,8 @@
 //! and storing them in the Qdrant vector database. It serves as the bridge
 //! between text processing and database storage.
 
-use crate::qdrant_custom_client;
 use crate::Config;
+use crate::qdrant_custom_client;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -266,6 +266,24 @@ pub fn index_chunks_sync(
                 return Err(format!("Failed to connect to Qdrant server: {}", e).into());
             }
         }
+
+        // Check if collection exists
+        let collection_name = config.qdrant.collection.clone();
+        match qdrant_client.collection_exists_blocking(&collection_name) {
+            Ok(exists) => {
+                if exists {
+                    println!("Collection '{}' exists in Qdrant", collection_name);
+                } else {
+                    println!("Collection '{}' does not exist in Qdrant", collection_name);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to check collection existence: {}", e);
+                return Err(format!("Failed to check collection existence: {}", e).into());
+            }
+        }
+
+        // Create Qdrant client
     } else {
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }

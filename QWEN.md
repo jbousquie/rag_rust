@@ -68,7 +68,7 @@ Ce module contient toute la logique du serveur HTTP.
 -   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
 
 ### `src/qdrant_custom_client.rs`
-Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant.
+Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant et vérifier l'existence de collections.
 
 ### `data_sources/`
 -   Ce répertoire contient les documents bruts qui serviront de base de connaissances pour le RAG. Il est ignoré par Git par défaut (sauf un fichier `.gitkeep`).
@@ -113,6 +113,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Gestion correcte des opérations asynchrones dans le code
 - Adaptation du point d'entrée principal pour gérer les opérations asynchrones dans une fonction synchrone
 - Correction des erreurs de compilation liées à l'API Qdrant
+- Ajout de la méthode `collection_exists()` pour vérifier l'existence de collections dans Qdrant
 
 ### Prochaines Étapes
 - Finalisation de l'implémentation du module RAG proxy
