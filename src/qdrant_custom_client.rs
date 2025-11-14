@@ -68,10 +68,49 @@ pub struct Point {
     pub payload: Option<serde_json::Value>,
 }
 
+impl Point {
+    pub fn new(id: serde_json::Value, vector: Vec<f32>, payload: Option<serde_json::Value>) -> Self {
+        Point {
+            id,
+            vector,
+            payload,
+        }
+    }
+
+    pub fn from_id_vector(id: &str, vector: Vec<f32>) -> Self {
+        Point {
+            id: serde_json::Value::String(id.to_string()),
+            vector,
+            payload: None,
+        }
+    }
+
+    pub fn from_id_vector_payload(id: &str, vector: Vec<f32>, payload: serde_json::Value) -> Self {
+        Point {
+            id: serde_json::Value::String(id.to_string()),
+            vector,
+            payload: Some(payload),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpsertPointsResponse {
     pub status: String,
     pub result: UpsertResult,
+    pub usage: UpsertUsage,
+    pub time: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpsertUsage {
+    pub cpu: u64,
+    pub payload_io_read: u64,
+    pub payload_io_write: u64,
+    pub payload_index_io_read: u64,
+    pub payload_index_io_write: u64,
+    pub vector_io_read: u64,
+    pub vector_io_write: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -126,10 +165,7 @@ impl QdrantClient {
         let url = format!("http://{}:{}/telemetry", self.host, self.port);
 
         // Send API key as a header parameter
-        let response = client
-            .get(&url)
-            .header("api-key", &self.api_key)
-            .send()?;
+        let response = client.get(&url).header("api-key", &self.api_key).send()?;
 
         let telemetry: TelemetryResponse = response.json()?;
         Ok(telemetry)
@@ -144,7 +180,10 @@ impl QdrantClient {
     /// * `Result<bool, reqwest::Error>` - True if collection exists, false otherwise, or error
     pub async fn collection_exists(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
         let client = reqwest::Client::new();
-        let url = format!("http://{}:{}/collections/{}/exists", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}/exists",
+            self.host, self.port, collection_name
+        );
 
         let response = client
             .get(&url)
@@ -163,14 +202,17 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection exists, false otherwise, or error
-    pub fn collection_exists_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub fn collection_exists_blocking(
+        &self,
+        collection_name: &str,
+    ) -> Result<bool, reqwest::Error> {
         let client = reqwest::blocking::Client::new();
-        let url = format!("http://{}:{}/collections/{}/exists", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}/exists",
+            self.host, self.port, collection_name
+        );
 
-        let response = client
-            .get(&url)
-            .header("api-key", &self.api_key)
-            .send()?;
+        let response = client.get(&url).header("api-key", &self.api_key).send()?;
 
         let result: CollectionExistsResponse = response.json()?;
         Ok(result.result.exists)
@@ -185,7 +227,10 @@ impl QdrantClient {
     /// * `Result<bool, reqwest::Error>` - True if collection was created successfully, false otherwise, or error
     pub async fn create_collection(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
         let client = reqwest::Client::new();
-        let url = format!("http://{}:{}/collections/{}", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}",
+            self.host, self.port, collection_name
+        );
 
         let request_body = CreateCollectionRequest {
             vectors: serde_json::json!({
@@ -213,9 +258,15 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection was created successfully, false otherwise, or error
-    pub fn create_collection_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub fn create_collection_blocking(
+        &self,
+        collection_name: &str,
+    ) -> Result<bool, reqwest::Error> {
         let client = reqwest::blocking::Client::new();
-        let url = format!("http://{}:{}/collections/{}", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}",
+            self.host, self.port, collection_name
+        );
 
         let request_body = CreateCollectionRequest {
             vectors: serde_json::json!({
@@ -243,9 +294,16 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
-    pub async fn upsert_points(&self, collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error> {
+    pub async fn upsert_points(
+        &self,
+        collection_name: &str,
+        points: Vec<Point>,
+    ) -> Result<bool, reqwest::Error> {
         let client = reqwest::Client::new();
-        let url = format!("http://{}:{}/collections/{}/points", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}/points",
+            self.host, self.port, collection_name
+        );
 
         let request_body = UpsertPointsRequest { points };
 
@@ -269,9 +327,16 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
-    pub fn upsert_points_blocking(&self, collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error> {
+    pub fn upsert_points_blocking(
+        &self,
+        collection_name: &str,
+        points: Vec<Point>,
+    ) -> Result<bool, reqwest::Error> {
         let client = reqwest::blocking::Client::new();
-        let url = format!("http://{}:{}/collections/{}/points", self.host, self.port, collection_name);
+        let url = format!(
+            "http://{}:{}/collections/{}/points",
+            self.host, self.port, collection_name
+        );
 
         let request_body = UpsertPointsRequest { points };
 
@@ -283,6 +348,6 @@ impl QdrantClient {
             .send()?;
 
         let result: UpsertPointsResponse = response.json()?;
-        Ok(result.result.status == "acknowledged")
+        Ok(result.status == "ok")
     }
 }

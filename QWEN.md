@@ -55,7 +55,7 @@ Ce module gère tout le processus de transformation des documents bruts en vecte
 -   `indexer.rs` : Orchestre la génération des embeddings pour chaque fragment en appelant Ollama et stocke ensuite les paires (fragment, vecteur) dans la collection Qdrant. Le processus d'indexation :
     *   Charge les fragments de texte
     *   Appelle Ollama pour générer les embeddings pour chaque fragment
-    *   Stocke les embeddings dans Qdrant
+    *   Stocke les embeddings dans Qdrant en utilisant les méthodes `upsert_points_blocking()` du client Qdrant
 -   `file_tracker.rs` : Gère le suivi des fichiers indexés pour éviter de re-indexer les fichiers non modifiés.
 -   `main.rs` : Point d'entrée du binaire d'indexation qui orchestre le processus complet d'indexation des documents.
 

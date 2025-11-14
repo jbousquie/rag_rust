@@ -140,7 +140,37 @@ pub async fn index_chunks(
             }
         }
 
-        // Create Qdrant client
+        // Create points for upsert
+        let collection_name = config.qdrant.collection.clone();
+        let mut points = Vec::new();
+        for (i, (embedding, text)) in chunk_embeddings.iter().zip(chunk_texts.iter()).enumerate() {
+            let point = qdrant_custom_client::Point {
+                id: serde_json::Value::String(format!("{}_{}", filename, i)),
+                vector: embedding.clone(),
+                payload: Some(serde_json::json!({
+                    "text": text,
+                    "source_file": filename,
+                    "chunk_index": i
+                })),
+            };
+            points.push(point);
+        }
+
+        // Upsert points into Qdrant
+        match qdrant_client.upsert_points(&collection_name, points).await {
+            Ok(success) => {
+                if success {
+                    println!("Successfully upserted {} points into collection '{}'", chunk_embeddings.len(), collection_name);
+                } else {
+                    eprintln!("Failed to upsert points into collection '{}'", collection_name);
+                    return Err(format!("Failed to upsert points into collection '{}'", collection_name).into());
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to upsert points into collection '{}': {}", collection_name, e);
+                return Err(format!("Failed to upsert points into collection '{}': {}", collection_name, e).into());
+            }
+        }
     } else {
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }
@@ -299,7 +329,36 @@ pub fn index_chunks_sync(
             }
         }
 
-        // Create Qdrant client
+        // Create points for upsert
+        let mut points = Vec::new();
+        for (i, (embedding, text)) in chunk_embeddings.iter().zip(chunk_texts.iter()).enumerate() {
+            let point = qdrant_custom_client::Point {
+                id: serde_json::Value::String(format!("{}_{}", filename, i)),
+                vector: embedding.clone(),
+                payload: Some(serde_json::json!({
+                    "text": text,
+                    "source_file": filename,
+                    "chunk_index": i
+                })),
+            };
+            points.push(point);
+        }
+
+        // Upsert points into Qdrant
+        match qdrant_client.upsert_points_blocking(&collection_name, points) {
+            Ok(success) => {
+                if success {
+                    println!("Successfully upserted {} points into collection '{}'", chunk_embeddings.len(), collection_name);
+                } else {
+                    eprintln!("Failed to upsert points into collection '{}'", collection_name);
+                    return Err(format!("Failed to upsert points into collection '{}'", collection_name).into());
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to upsert points into collection '{}': {}", collection_name, e);
+                return Err(format!("Failed to upsert points into collection '{}': {}", collection_name, e).into());
+            }
+        }
     } else {
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }
