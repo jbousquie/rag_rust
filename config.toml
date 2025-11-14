@@ -37,3 +37,4 @@ model = "qwen3-embedding:8b"
 host = "localhost"
 port = 6333
 api_key = ""
+collection = "rag_documents"

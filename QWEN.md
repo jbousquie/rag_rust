@@ -57,6 +57,7 @@ Ce module gère tout le processus de transformation des documents bruts en vecte
     *   Appelle Ollama pour générer les embeddings pour chaque fragment
     *   Stocke les embeddings dans Qdrant
 -   `file_tracker.rs` : Gère le suivi des fichiers indexés pour éviter de re-indexer les fichiers non modifiés.
+-   `main.rs` : Point d'entrée du binaire d'indexation qui orchestre le processus complet d'indexation des documents.
 
 ### `src/rag_proxy/`
 Ce module contient toute la logique du serveur HTTP.
@@ -86,16 +87,33 @@ Le proxy RAG ne contient pas de LLM lui-même, mais interagit avec un service ex
 
 Le module `llm_caller.rs` dans le code Rust doit donc être implémenté pour inclure cette clé d'API dans chaque requête envoyée au LLM. La clé elle-même doit être gérée de manière sécurisée via des variables d'environnement ou un système de gestion de secrets.
 
-## 5. Changements Réalisés pour la Compilation
+## 5. État d'avancement du projet
 
-Les modifications suivantes ont été apportées pour permettre la compilation du projet :
+Le projet est en cours de développement avec les fonctionnalités suivantes implémentées :
 
-1. **Correction des fonctions main asynchrones** : Les fonctions `main` dans `src/indexing/main.rs` et `src/rag_proxy/main.rs` ont été converties de `async` à `sync` pour éviter les erreurs de compilation liées à l'utilisation incorrecte de `async` dans les binaires.
-2. **Correction des imports de modules** : Les imports dans `src/indexing/main.rs` ont été mis à jour pour utiliser le bon chemin de module (`rag_rust::common::Config` au lieu de `crate::common::Config`).
-3. **Suppression du fichier main.rs redondant** : Le fichier `src/main.rs` a été supprimé car il causait des conflits de module avec les binaires.
-4. **Mise à jour de la documentation** : Le README.md a été mis à jour pour refléter les changements apportés.
-5. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
-6. **Ajout de la configuration de la taille des fragments** : La taille des fragments de texte peut maintenant être configurée via `config.toml` dans la section `[indexing]` avec la clé `chunk_size`.
-7. **Correction des erreurs de compilation** : Correction des problèmes d'import, de dépendances et d'implémentation des modules d'indexation pour permettre la compilation réussie du projet.
-8. **Implémentation de la gestion des fichiers de suivi** : Le fichier de suivi des documents indexés peut maintenant être configuré via `config.toml` dans la section `[indexing]` avec la clé `file_tracker_path`.
-9. **Ajout de la fonctionnalité de génération d'embeddings** : Le module `indexer.rs` a été mis à jour pour envoyer correctement les requêtes d'embedding à l'instance Ollama locale, permettant la génération des embeddings nécessaires à l'indexation.
+### Indexing Module
+- Le module d'indexation est entièrement fonctionnel avec les composants suivants :
+  - `loader.rs` : Charge les fichiers de différents formats depuis `data_sources/`
+  - `chunker.rs` : Découpe les textes en fragments de taille gérable
+  - `indexer.rs` : Génère les embeddings via Ollama et stocke les résultats dans Qdrant
+  - `file_tracker.rs` : Suivi des fichiers indexés pour éviter les re-indexations inutiles
+  - `main.rs` : Point d'entrée du binaire d'indexation
+
+### Dépendances
+- `qdrant-client` version 1.15.0 utilisée pour l'intégration avec Qdrant
+- `reqwest` pour les appels HTTP vers Ollama
+- `tokio` pour la gestion des opérations asynchrones
+- `serde` et `serde_json` pour la gestion des données JSON
+
+### Améliorations Réalisées
+- Correction des problèmes d'importation et d'utilisation de l'API Qdrant client
+- Utilisation correcte du builder pattern pour la création de collections et d'insertion de points
+- Gestion correcte des opérations asynchrones dans le code
+- Adaptation du point d'entrée principal pour gérer les opérations asynchrones dans une fonction synchrone
+- Correction des erreurs de compilation liées à l'API Qdrant
+
+### Prochaines Étapes
+- Finalisation de l'implémentation du module RAG proxy
+- Tests complets de l'ensemble du système
+- Documentation complète du projet
+- Configuration de l'environnement de développement et de déploiement

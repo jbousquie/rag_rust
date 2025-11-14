@@ -53,6 +53,7 @@ pub struct QdrantConfig {
     pub host: String,
     pub port: u16,
     pub api_key: String,
+    pub collection: String,
 }
 
 impl Config {

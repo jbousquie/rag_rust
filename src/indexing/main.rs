@@ -52,8 +52,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Chunk content
         let chunks = chunker::chunk_text(&content, config.indexing.chunk_size);
 
-        // Index chunks
-        indexer::index_chunks(&config, &chunks, &file_name)?;
+        // Index chunks - this is now async, so we need to use a runtime
+        tokio::runtime::Runtime::new()?.block_on(async {
+            indexer::index_chunks(&config, &chunks, &file_name).await
+        })?;
 
         // Update tracker with new MD5
         if let Ok(file_content) = fs::read(&file_name) {
