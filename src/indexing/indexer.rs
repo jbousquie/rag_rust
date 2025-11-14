@@ -275,6 +275,22 @@ pub fn index_chunks_sync(
                     println!("Collection '{}' exists in Qdrant", collection_name);
                 } else {
                     println!("Collection '{}' does not exist in Qdrant", collection_name);
+                    // Create the collection
+                    println!("Creating collection '{}'...", collection_name);
+                    match qdrant_client.create_collection_blocking(&collection_name) {
+                        Ok(created) => {
+                            if created {
+                                println!("Collection '{}' created successfully", collection_name);
+                            } else {
+                                eprintln!("Failed to create collection '{}'", collection_name);
+                                return Err(format!("Failed to create collection '{}'", collection_name).into());
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to create collection '{}': {}", collection_name, e);
+                            return Err(format!("Failed to create collection '{}': {}", collection_name, e).into());
+                        }
+                    }
                 }
             }
             Err(e) => {

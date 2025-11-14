@@ -80,6 +80,8 @@ Le module `qdrant_custom_client.rs` fournit un client personnalisé pour interag
 - `collection_exists_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de collection_exists
 - `create_collection(collection_name: &str) -> Result<bool, reqwest::Error>` - Crée une collection dans Qdrant avec une configuration de vecteur par défaut (taille 384, distance Cosine)
 - `create_collection_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de create_collection
+- `upsert_points(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Insère ou met à jour des points (vecteurs) dans une collection Qdrant
+- `upsert_points_blocking(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Version synchrone de upsert_points
 
 ## Installation et Démarrage
 

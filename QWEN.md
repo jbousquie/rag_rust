@@ -68,7 +68,19 @@ Ce module contient toute la logique du serveur HTTP.
 -   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
 
 ### `src/qdrant_custom_client.rs`
-Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant, vérifier l'existence de collections et créer de nouvelles collections.
+Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant, vérifier l'existence de collections, créer de nouvelles collections et insérer des points (vecteurs) dans les collections.
+
+#### Méthodes principales
+
+- `new(host: String, port: u16, api_key: String)` - Crée une nouvelle instance du client Qdrant
+- `health_check() -> Result<TelemetryResponse, reqwest::Error>` - Vérifie si le serveur Qdrant est en ligne en appelant le endpoint `/telemetry`
+- `health_check_blocking() -> Result<TelemetryResponse, reqwest::Error>` - Version synchrone de health_check
+- `collection_exists(collection_name: &str) -> Result<bool, reqwest::Error>` - Vérifie si une collection existe dans Qdrant en appelant le endpoint `/collections/{collection_name}/exists`
+- `collection_exists_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de collection_exists
+- `create_collection(collection_name: &str) -> Result<bool, reqwest::Error>` - Crée une collection dans Qdrant avec une configuration de vecteur par défaut (taille 384, distance Cosine)
+- `create_collection_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de create_collection
+- `upsert_points(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Insère ou met à jour des points (vecteurs) dans une collection Qdrant
+- `upsert_points_blocking(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Version synchrone de upsert_points
 
 ### `data_sources/`
 -   Ce répertoire contient les documents bruts qui serviront de base de connaissances pour le RAG. Il est ignoré par Git par défaut (sauf un fichier `.gitkeep`).

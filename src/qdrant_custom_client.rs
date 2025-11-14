@@ -56,6 +56,30 @@ pub struct CreateCollectionRequest {
     pub vectors: serde_json::Value,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpsertPointsRequest {
+    pub points: Vec<Point>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Point {
+    pub id: serde_json::Value,
+    pub vector: Vec<f32>,
+    pub payload: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpsertPointsResponse {
+    pub status: String,
+    pub result: UpsertResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpsertResult {
+    pub status: String,
+    pub operation_id: u64,
+}
+
 impl QdrantClient {
     /// Creates a new Qdrant client
     ///
@@ -209,5 +233,56 @@ impl QdrantClient {
 
         let result: CreateCollectionResponse = response.json()?;
         Ok(result.result)
+    }
+
+    /// Upserts points (embeddings) into a Qdrant collection
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to upsert points into
+    /// * `points` - Vector of points to upsert
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
+    pub async fn upsert_points(&self, collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let url = format!("http://{}:{}/collections/{}/points", self.host, self.port, collection_name);
+
+        let request_body = UpsertPointsRequest { points };
+
+        let response = client
+            .put(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let result: UpsertPointsResponse = response.json().await?;
+        Ok(result.result.status == "acknowledged")
+    }
+
+    /// Blocking version of upsert_points for synchronous contexts
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to upsert points into
+    /// * `points` - Vector of points to upsert
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
+    pub fn upsert_points_blocking(&self, collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://{}:{}/collections/{}/points", self.host, self.port, collection_name);
+
+        let request_body = UpsertPointsRequest { points };
+
+        let response = client
+            .put(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()?;
+
+        let result: UpsertPointsResponse = response.json()?;
+        Ok(result.result.status == "acknowledged")
     }
 }
