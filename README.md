@@ -78,6 +78,8 @@ Le module `qdrant_custom_client.rs` fournit un client personnalisé pour interag
 - `health_check_blocking() -> Result<TelemetryResponse, reqwest::Error>` - Version synchrone de health_check
 - `collection_exists(collection_name: &str) -> Result<bool, reqwest::Error>` - Vérifie si une collection existe dans Qdrant en appelant le endpoint `/collections/{collection_name}/exists`
 - `collection_exists_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de collection_exists
+- `create_collection(collection_name: &str) -> Result<bool, reqwest::Error>` - Crée une collection dans Qdrant avec une configuration de vecteur par défaut (taille 384, distance Cosine)
+- `create_collection_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de create_collection
 
 ## Installation et Démarrage
 

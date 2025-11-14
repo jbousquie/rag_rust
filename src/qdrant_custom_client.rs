@@ -29,6 +29,33 @@ pub struct CollectionExistsResult {
     pub exists: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateCollectionResponse {
+    pub result: bool,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VectorParams {
+    pub size: u64,
+    pub distance: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SparseVectorParams {
+    pub index: SparseVectorIndex,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SparseVectorIndex {
+    pub on_disk: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateCollectionRequest {
+    pub vectors: serde_json::Value,
+}
+
 impl QdrantClient {
     /// Creates a new Qdrant client
     ///
@@ -123,5 +150,64 @@ impl QdrantClient {
 
         let result: CollectionExistsResponse = response.json()?;
         Ok(result.result.exists)
+    }
+
+    /// Creates a collection in Qdrant with default dense vector configuration
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to create
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection was created successfully, false otherwise, or error
+    pub async fn create_collection(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let url = format!("http://{}:{}/collections/{}", self.host, self.port, collection_name);
+
+        let request_body = CreateCollectionRequest {
+            vectors: serde_json::json!({
+                "size": 384,
+                "distance": "Cosine"
+            }),
+        };
+
+        let response = client
+            .put(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let result: CreateCollectionResponse = response.json().await?;
+        Ok(result.result)
+    }
+
+    /// Blocking version of create_collection for synchronous contexts
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to create
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection was created successfully, false otherwise, or error
+    pub fn create_collection_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://{}:{}/collections/{}", self.host, self.port, collection_name);
+
+        let request_body = CreateCollectionRequest {
+            vectors: serde_json::json!({
+                "size": 384,
+                "distance": "Cosine"
+            }),
+        };
+
+        let response = client
+            .put(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()?;
+
+        let result: CreateCollectionResponse = response.json()?;
+        Ok(result.result)
     }
 }
