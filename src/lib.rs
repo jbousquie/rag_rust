@@ -69,3 +69,4 @@ impl Config {
 }
 
 pub mod indexing;
+pub mod qdrant_custom_client;

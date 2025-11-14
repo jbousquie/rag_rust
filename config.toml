@@ -36,5 +36,5 @@ model = "qwen3-embedding:8b"
 # Configuration de Qdrant
 host = "localhost"
 port = 6333
-api_key = ""
+api_key = "qdrantapikey"
 collection = "rag_documents"

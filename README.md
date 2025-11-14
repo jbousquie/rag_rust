@@ -50,6 +50,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 ├── Cargo.toml          # Dépendances et définition des binaires
 ├── src/
 │   ├── lib.rs          # Fonctions utilitaires partagées
+│   ├── qdrant_custom_client.rs  # Client personnalisé pour Qdrant
 │   ├── indexing/       # Logique d'indexation
 │   │   ├── mod.rs
 │   │   ├── loader.rs   # Chargement des fichiers

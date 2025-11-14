@@ -67,6 +67,9 @@ Ce module contient toute la logique du serveur HTTP.
 -   `retriever.rs` : Gère spécifiquement l'interaction avec Qdrant. Il prend une question, la vectorise et effectue la recherche de similarité pour récupérer le contexte.
 -   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
 
+### `src/qdrant_custom_client.rs`
+Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant.
+
 ### `data_sources/`
 -   Ce répertoire contient les documents bruts qui serviront de base de connaissances pour le RAG. Il est ignoré par Git par défaut (sauf un fichier `.gitkeep`).
 
@@ -100,8 +103,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
   - `main.rs` : Point d'entrée du binaire d'indexation
 
 ### Dépendances
-- `qdrant-client` version 1.15.0 utilisée pour l'intégration avec Qdrant
-- `reqwest` pour les appels HTTP vers Ollama
+- `reqwest` pour les appels HTTP vers Ollama et Qdrant
 - `tokio` pour la gestion des opérations asynchrones
 - `serde` et `serde_json` pour la gestion des données JSON
 
