@@ -4,12 +4,11 @@
 //! and storing them in the Qdrant vector database. It serves as the bridge
 //! between text processing and database storage.
 
+use crate::qdrant_custom_client;
 use crate::Config;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
 #[derive(Debug, Serialize)]
 struct EmbeddingRequest {
@@ -124,6 +123,23 @@ pub async fn index_chunks(
     if !chunk_embeddings.is_empty() {
         println!("Connecting to Qdrant for file: {}", filename);
 
+        // Check if Qdrant server is online using our custom client
+        let qdrant_client = qdrant_custom_client::QdrantClient::new(
+            config.qdrant.host.clone(),
+            config.qdrant.port,
+            config.qdrant.api_key.clone(),
+        );
+
+        match qdrant_client.health_check().await {
+            Ok(response) => {
+                println!("Qdrant server is online. Status: {}", response.status);
+            }
+            Err(e) => {
+                eprintln!("Failed to connect to Qdrant server: {}", e);
+                return Err(format!("Failed to connect to Qdrant server: {}", e).into());
+            }
+        }
+
         // Create Qdrant client
     } else {
         println!("No embeddings to store in Qdrant for file: {}", filename);
@@ -234,11 +250,22 @@ pub fn index_chunks_sync(
     if !chunk_embeddings.is_empty() {
         println!("Connecting to Qdrant for file: {}", filename);
 
-        // Create a new runtime for Qdrant operations
-        let rt = Runtime::new().map_err(|e| {
-            eprintln!("Failed to create Tokio runtime for Qdrant: {}", e);
-            format!("Failed to create Tokio runtime for Qdrant: {}", e)
-        })?;
+        // Check if Qdrant server is online using our custom client
+        let qdrant_client = qdrant_custom_client::QdrantClient::new(
+            config.qdrant.host.clone(),
+            config.qdrant.port,
+            config.qdrant.api_key.clone(),
+        );
+
+        match qdrant_client.health_check_blocking() {
+            Ok(response) => {
+                println!("Qdrant server is online. Status: {}", response.status);
+            }
+            Err(e) => {
+                eprintln!("Failed to connect to Qdrant server: {}", e);
+                return Err(format!("Failed to connect to Qdrant server: {}", e).into());
+            }
+        }
     } else {
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }

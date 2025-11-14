@@ -55,4 +55,22 @@ impl QdrantClient {
         let telemetry: TelemetryResponse = response.json().await?;
         Ok(telemetry)
     }
+
+    /// Blocking version of health_check for synchronous contexts
+    ///
+    /// # Returns
+    /// * `Result<TelemetryResponse, reqwest::Error>` - Telemetry information if successful, error otherwise
+    pub fn health_check_blocking(&self) -> Result<TelemetryResponse, reqwest::Error> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://{}:{}/telemetry", self.host, self.port);
+
+        // Send API key as a header parameter
+        let response = client
+            .get(&url)
+            .header("api-key", &self.api_key)
+            .send()?;
+
+        let telemetry: TelemetryResponse = response.json()?;
+        Ok(telemetry)
+    }
 }
