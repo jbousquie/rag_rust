@@ -303,8 +303,15 @@ impl QdrantClient {
         let points: Vec<Point> = chunks
             .into_iter()
             .map(|(chunk_value, vector)| {
+                // Calculate hash of chunk_value using a proper hashing method
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                chunk_value.hash(&mut hasher);
+                let hash_value = format!("{:x}", hasher.finish());
+
                 let payload = serde_json::json!({
                     "text": chunk_value,
+                    "hash": hash_value,
                     "source": filename.clone()
                 });
                 Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)
@@ -347,8 +354,15 @@ impl QdrantClient {
         let points: Vec<Point> = chunks
             .into_iter()
             .map(|(chunk_value, vector)| {
+                // Calculate hash of chunk_value using a proper hashing method
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                chunk_value.hash(&mut hasher);
+                let hash_value = format!("{:x}", hasher.finish());
+
                 let payload = serde_json::json!({
                     "text": chunk_value,
+                    "hash": hash_value,
                     "source": filename.clone()
                 });
                 Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)

@@ -40,7 +40,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Filter files that need to be processed (new or changed)
-    let files_to_process = tracker.get_changed_files(&files);
+    let files_to_process = tracker.get_changed_files(&files, &config.indexing.path);
 
     // Process files
     for file_name in files_to_process {
@@ -56,7 +56,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         indexer::index_chunks_sync(&config, &chunks, &file_name)?;
 
         // Update tracker with new MD5
-        if let Ok(file_content) = fs::read(&file_name) {
+        let full_path = Path::new(&config.indexing.path).join(&file_name);
+        if let Ok(file_content) = fs::read(&full_path) {
             let md5 = format!("{:x}", md5::Md5::digest(&file_content));
             tracker.set_file_md5(file_name, md5);
         }

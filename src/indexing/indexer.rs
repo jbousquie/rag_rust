@@ -97,12 +97,12 @@ pub async fn index_chunks(
                 );
                 format!("Failed to read response text from Ollama: {}", e)
             })?;
-
+            /*/
             println!(
                 "Raw Ollama response for file {}: {}",
                 filename, response_text
             );
-
+            */
             // Parse the JSON response - Ollama returns a single embedding at a time
             let embedding_response: OllamaEmbeddingResponse = serde_json::from_str(&response_text)
                 .map_err(|e| {
@@ -285,11 +285,12 @@ pub fn index_chunks_sync(
                 );
                 format!("Failed to read response text from Ollama: {}", e)
             })?;
-
+            /*
             println!(
                 "Raw Ollama response for file {}: {}",
                 filename, response_text
             );
+            */
 
             // Parse the JSON response - Ollama returns a single embedding at a time
             let embedding_response: OllamaEmbeddingResponse = serde_json::from_str(&response_text)

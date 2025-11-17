@@ -89,11 +89,11 @@ impl FileTracker {
     }
 
     /// Checks if a file has changed since it was last tracked
-    /// 
+    ///
     /// # Arguments
     /// * `filename` - Name of the file to check
     /// * `content` - Current content of the file
-    /// 
+    ///
     /// # Returns
     /// * `bool` - True if the file has changed, false if it's the same or not tracked
     pub fn is_file_changed(&self, filename: &str, content: &[u8]) -> bool {
@@ -105,18 +105,20 @@ impl FileTracker {
     }
 
     /// Gets a list of files that have changed since last tracking
-    /// 
+    ///
     /// # Arguments
     /// * `files` - List of file names to check
-    /// 
+    /// * `data_sources_path` - Path to the data sources directory
+    ///
     /// # Returns
     /// * `Vec<String>` - List of file names that have changed
-    pub fn get_changed_files(&self, files: &[String]) -> Vec<String> {
+    pub fn get_changed_files(&self, files: &[String], data_sources_path: &str) -> Vec<String> {
         files
             .iter()
             .filter(|filename| {
                 // Check if file exists and has changed
-                if let Ok(content) = fs::read(filename) {
+                let full_path = Path::new(data_sources_path).join(filename);
+                if let Ok(content) = fs::read(&full_path) {
                     self.is_file_changed(filename, &content)
                 } else {
                     // If file doesn't exist, it's considered as changed
