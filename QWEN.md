@@ -114,10 +114,19 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
   - `file_tracker.rs` : Suivi des fichiers indexés pour éviter les re-indexations inutiles
   - `main.rs` : Point d'entrée du binaire d'indexation
 
+### RAG Proxy Module
+- Le module RAG proxy est entièrement implémenté avec les composants suivants :
+  - `server.rs` : Serveur HTTP Axum avec routes configurables
+  - `handler.rs` : Logique de traitement des requêtes RAG (embedding, recherche, appel LLM)
+  - `retriever.rs` : Interaction avec Qdrant pour la recherche de contexte
+  - `llm_caller.rs` : Communication avec le LLM distant via API compatible OpenAI
+  - `mod.rs` : Déclaration des sous-modules
+
 ### Dépendances
 - `reqwest` pour les appels HTTP vers Ollama et Qdrant
 - `tokio` pour la gestion des opérations asynchrones
 - `serde` et `serde_json` pour la gestion des données JSON
+- `axum` pour le serveur HTTP
 
 ### Fonctionnalités Implémentées
 - Indexation des documents depuis le dossier `data_sources/`
@@ -127,9 +136,10 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
 - Utilisation des hashs des fragments comme identifiants uniques dans Qdrant pour éviter les doublons (format UUID)
 - Affichage de la durée de traitement de chaque fichier à la fin du processus d'indexation
+- Serveur HTTP Axum avec endpoint `/v1/chat/completions` configurable via `config.toml`
+- Intégration complète du flux RAG : embedding → recherche → appel LLM → réponse
 
 ### Prochaines Étapes
-- Finalisation de l'implémentation du module RAG proxy
 - Tests complets de l'ensemble du système
 - Documentation complète du projet
 - Configuration de l'environnement de développement et de déploiement

@@ -33,6 +33,7 @@ pub struct IndexingConfig {
 pub struct RagProxyConfig {
     pub port: u16,
     pub host: String,
+    pub chat_completion_endpoint: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -70,5 +71,11 @@ impl Config {
     }
 }
 
+/// Load configuration from config.toml
+pub fn load_config() -> Config {
+    Config::load().expect("Failed to load configuration")
+}
+
 pub mod indexing;
 pub mod qdrant_custom_client;
+pub mod rag_proxy;

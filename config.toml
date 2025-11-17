@@ -20,6 +20,7 @@ embeddings_chunk_size = 10
 # Paramètres du proxy RAG
 port = 3000
 host = "127.0.0.1"
+chat_completion_endpoint = "/v1/chat/completions"
 
 [llm]
 # Configuration de l'API LLM

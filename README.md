@@ -17,6 +17,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
+*   **Serveur HTTP Axum :** Le proxy RAG est implémenté avec un serveur HTTP Axum qui expose l'endpoint `/v1/chat/completions` configurable via `config.toml`.
 
 ## Prérequis
 
@@ -143,6 +144,20 @@ distance = "Cosine"
 ```
 
 Ces paramètres permettent de spécifier la taille des vecteurs et la distance de similarité utilisée dans la base de données vectorielle, ce qui correspond à la configuration de votre modèle d'embedding.
+
+### Endpoint configurable
+
+L'endpoint `/v1/chat/completions` du proxy RAG est maintenant configurable via `config.toml` dans la section `[rag_proxy]` :
+
+```toml
+[rag_proxy]
+# Configuration du proxy RAG
+host = "localhost"
+port = 3000
+chat_completion_endpoint = "/v1/chat/completions"
+```
+
+Cela permet de personnaliser l'endpoint exposé par le serveur proxy RAG.
 
 ## Étapes Suivantes / Extensibilité
 
