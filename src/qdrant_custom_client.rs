@@ -2,6 +2,7 @@
 //!
 //! This module provides a simple client that can test if the Qdrant server
 //! is running by calling the telemetry endpoint.
+//! https://api.qdrant.tech/api-reference/points/upsert-points
 
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,8 @@ pub struct QdrantClient {
     pub host: String,
     pub port: u16,
     pub api_key: String,
+    pub vector_size: u64,
+    pub distance: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,6 +64,7 @@ pub struct UpsertPointsRequest {
     pub points: Vec<Point>,
 }
 
+// https://api.qdrant.tech/api-reference/points/upsert-points
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Point {
     pub id: serde_json::Value,
@@ -69,7 +73,11 @@ pub struct Point {
 }
 
 impl Point {
-    pub fn new(id: serde_json::Value, vector: Vec<f32>, payload: Option<serde_json::Value>) -> Self {
+    pub fn new(
+        id: serde_json::Value,
+        vector: Vec<f32>,
+        payload: Option<serde_json::Value>,
+    ) -> Self {
         Point {
             id,
             vector,
@@ -94,31 +102,6 @@ impl Point {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpsertPointsResponse {
-    pub status: String,
-    pub result: UpsertResult,
-    pub usage: UpsertUsage,
-    pub time: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpsertUsage {
-    pub cpu: u64,
-    pub payload_io_read: u64,
-    pub payload_io_write: u64,
-    pub payload_index_io_read: u64,
-    pub payload_index_io_write: u64,
-    pub vector_io_read: u64,
-    pub vector_io_write: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpsertResult {
-    pub status: String,
-    pub operation_id: u64,
-}
-
 impl QdrantClient {
     /// Creates a new Qdrant client
     ///
@@ -126,14 +109,24 @@ impl QdrantClient {
     /// * `host` - The host address of the Qdrant server
     /// * `port` - The port number of the Qdrant server
     /// * `api_key` - The API key for authentication
+    /// * `vector_size` - The size of the vectors to be stored
+    /// * `distance` - The distance metric to use for vector similarity
     ///
     /// # Returns
     /// * `QdrantClient` - A new instance of the Qdrant client
-    pub fn new(host: String, port: u16, api_key: String) -> Self {
+    pub fn new(
+        host: String,
+        port: u16,
+        api_key: String,
+        vector_size: u64,
+        distance: String,
+    ) -> Self {
         QdrantClient {
             host,
             port,
             api_key,
+            vector_size,
+            distance,
         }
     }
 
@@ -218,7 +211,7 @@ impl QdrantClient {
         Ok(result.result.exists)
     }
 
-    /// Creates a collection in Qdrant with default dense vector configuration
+    /// Creates a collection in Qdrant with configurable dense vector configuration
     ///
     /// # Arguments
     /// * `collection_name` - Name of the collection to create
@@ -234,8 +227,8 @@ impl QdrantClient {
 
         let request_body = CreateCollectionRequest {
             vectors: serde_json::json!({
-                "size": 384,
-                "distance": "Cosine"
+                "size": self.vector_size,
+                "distance": self.distance
             }),
         };
 
@@ -270,8 +263,8 @@ impl QdrantClient {
 
         let request_body = CreateCollectionRequest {
             vectors: serde_json::json!({
-                "size": 384,
-                "distance": "Cosine"
+                "size": self.vector_size,
+                "distance": self.distance
             }),
         };
 
@@ -290,20 +283,33 @@ impl QdrantClient {
     ///
     /// # Arguments
     /// * `collection_name` - Name of the collection to upsert points into
-    /// * `points` - Vector of points to upsert
+    /// * `filename` - Name of the source file for the chunks
+    /// * `chunks` - Vector of chunk values and their corresponding vectors
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
     pub async fn upsert_points(
         &self,
         collection_name: &str,
-        points: Vec<Point>,
+        filename: String,
+        chunks: Vec<(String, Vec<f32>)>,
     ) -> Result<bool, reqwest::Error> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points",
             self.host, self.port, collection_name
         );
+
+        let points: Vec<Point> = chunks
+            .into_iter()
+            .map(|(chunk_value, vector)| {
+                let payload = serde_json::json!({
+                    "text": chunk_value,
+                    "source": filename.clone()
+                });
+                Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)
+            })
+            .collect();
 
         let request_body = UpsertPointsRequest { points };
 
@@ -314,29 +320,40 @@ impl QdrantClient {
             .json(&request_body)
             .send()
             .await?;
-
-        let result: UpsertPointsResponse = response.json().await?;
-        Ok(result.result.status == "acknowledged")
+        Ok(response.status() == 200)
     }
 
     /// Blocking version of upsert_points for synchronous contexts
     ///
     /// # Arguments
     /// * `collection_name` - Name of the collection to upsert points into
-    /// * `points` - Vector of points to upsert
+    /// * `filename` - Name of the source file for the chunks
+    /// * `chunks` - Vector of chunk values and their corresponding vectors
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if points were upserted successfully, false otherwise, or error
     pub fn upsert_points_blocking(
         &self,
         collection_name: &str,
-        points: Vec<Point>,
+        filename: String,
+        chunks: Vec<(String, Vec<f32>)>,
     ) -> Result<bool, reqwest::Error> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points",
             self.host, self.port, collection_name
         );
+
+        let points: Vec<Point> = chunks
+            .into_iter()
+            .map(|(chunk_value, vector)| {
+                let payload = serde_json::json!({
+                    "text": chunk_value,
+                    "source": filename.clone()
+                });
+                Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)
+            })
+            .collect();
 
         let request_body = UpsertPointsRequest { points };
 
@@ -346,8 +363,6 @@ impl QdrantClient {
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()?;
-
-        let result: UpsertPointsResponse = response.json()?;
-        Ok(result.status == "ok")
+        Ok(response.status() == 200)
     }
 }

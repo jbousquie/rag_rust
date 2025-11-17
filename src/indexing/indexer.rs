@@ -128,6 +128,8 @@ pub async fn index_chunks(
             config.qdrant.host.clone(),
             config.qdrant.port,
             config.qdrant.api_key.clone(),
+            config.qdrant.vector_size as u64,
+            config.qdrant.distance.clone(),
         );
 
         match qdrant_client.health_check().await {
@@ -157,18 +159,47 @@ pub async fn index_chunks(
         }
 
         // Upsert points into Qdrant
-        match qdrant_client.upsert_points(&collection_name, points).await {
+        match qdrant_client
+            .upsert_points(
+                &collection_name,
+                filename.to_string(),
+                chunk_texts
+                    .iter()
+                    .zip(chunk_embeddings.iter())
+                    .map(|(text, embedding)| (text.clone(), embedding.clone()))
+                    .collect(),
+            )
+            .await
+        {
             Ok(success) => {
                 if success {
-                    println!("Successfully upserted {} points into collection '{}'", chunk_embeddings.len(), collection_name);
+                    println!(
+                        "Successfully upserted {} points into collection '{}'",
+                        chunk_embeddings.len(),
+                        collection_name
+                    );
                 } else {
-                    eprintln!("Failed to upsert points into collection '{}'", collection_name);
-                    return Err(format!("Failed to upsert points into collection '{}'", collection_name).into());
+                    eprintln!(
+                        "Failed to upsert points into collection '{}'",
+                        collection_name
+                    );
+                    return Err(format!(
+                        "Failed to upsert points into collection '{}'",
+                        collection_name
+                    )
+                    .into());
                 }
             }
             Err(e) => {
-                eprintln!("Failed to upsert points into collection '{}': {}", collection_name, e);
-                return Err(format!("Failed to upsert points into collection '{}': {}", collection_name, e).into());
+                eprintln!(
+                    "Failed to upsert points into collection '{}': {}",
+                    collection_name, e
+                );
+                return Err(format!(
+                    "Failed to upsert points into collection '{}': {}",
+                    collection_name, e
+                )
+                .into());
             }
         }
     } else {
@@ -285,6 +316,8 @@ pub fn index_chunks_sync(
             config.qdrant.host.clone(),
             config.qdrant.port,
             config.qdrant.api_key.clone(),
+            config.qdrant.vector_size as u64,
+            config.qdrant.distance.clone(),
         );
 
         match qdrant_client.health_check_blocking() {
@@ -313,12 +346,20 @@ pub fn index_chunks_sync(
                                 println!("Collection '{}' created successfully", collection_name);
                             } else {
                                 eprintln!("Failed to create collection '{}'", collection_name);
-                                return Err(format!("Failed to create collection '{}'", collection_name).into());
+                                return Err(format!(
+                                    "Failed to create collection '{}'",
+                                    collection_name
+                                )
+                                .into());
                             }
                         }
                         Err(e) => {
                             eprintln!("Failed to create collection '{}': {}", collection_name, e);
-                            return Err(format!("Failed to create collection '{}': {}", collection_name, e).into());
+                            return Err(format!(
+                                "Failed to create collection '{}': {}",
+                                collection_name, e
+                            )
+                            .into());
                         }
                     }
                 }
@@ -345,18 +386,44 @@ pub fn index_chunks_sync(
         }
 
         // Upsert points into Qdrant
-        match qdrant_client.upsert_points_blocking(&collection_name, points) {
+        match qdrant_client.upsert_points_blocking(
+            &collection_name,
+            filename.to_string(),
+            chunk_texts
+                .iter()
+                .zip(chunk_embeddings.iter())
+                .map(|(text, embedding)| (text.clone(), embedding.clone()))
+                .collect(),
+        ) {
             Ok(success) => {
                 if success {
-                    println!("Successfully upserted {} points into collection '{}'", chunk_embeddings.len(), collection_name);
+                    println!(
+                        "Successfully upserted {} points into collection '{}'",
+                        chunk_embeddings.len(),
+                        collection_name
+                    );
                 } else {
-                    eprintln!("Failed to upsert points into collection '{}'", collection_name);
-                    return Err(format!("Failed to upsert points into collection '{}'", collection_name).into());
+                    eprintln!(
+                        "Failed to upsert points into collection '{}'",
+                        collection_name
+                    );
+                    return Err(format!(
+                        "Failed to upsert points into collection '{}'",
+                        collection_name
+                    )
+                    .into());
                 }
             }
             Err(e) => {
-                eprintln!("Failed to upsert points into collection '{}': {}", collection_name, e);
-                return Err(format!("Failed to upsert points into collection '{}': {}", collection_name, e).into());
+                eprintln!(
+                    "Failed to upsert points into collection '{}': {}",
+                    collection_name, e
+                );
+                return Err(format!(
+                    "Failed to upsert points into collection '{}': {}",
+                    collection_name, e
+                )
+                .into());
             }
         }
     } else {

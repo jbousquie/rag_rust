@@ -120,10 +120,27 @@ Le projet utilise un fichier central de configuration `config.toml` qui permet d
 - Configuration des sources de données (chemin vers le dossier des documents)
 - Paramètres du proxy RAG (port et host d'écoute)
 - Configuration de l'API LLM (endpoint, modèle, clé d'API)
-- Configuration de Qdrant (host, port, clé d'API)
+- Configuration de Qdrant (host, port, clé d'API, vector_size, distance)
 - Configuration de l'indexation (taille des fragments de texte, taille des lots pour les embeddings)
 
 Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
+
+### Nouveaux paramètres Qdrant
+
+Les nouveaux paramètres `vector_size` et `distance` ont été ajoutés à la section `[qdrant]` pour permettre une configuration personnalisée de la collection Qdrant :
+
+```toml
+[qdrant]
+# Configuration de Qdrant
+host = "localhost"
+port = 6333
+api_key = "qdrantapikey"
+collection = "rag_documents"
+vector_size = 4096
+distance = "Cosine"
+```
+
+Ces paramètres permettent de spécifier la taille des vecteurs et la distance de similarité utilisée dans la base de données vectorielle, ce qui correspond à la configuration de votre modèle d'embedding.
 
 ## Étapes Suivantes / Extensibilité
 

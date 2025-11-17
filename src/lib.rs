@@ -54,6 +54,8 @@ pub struct QdrantConfig {
     pub port: u16,
     pub api_key: String,
     pub collection: String,
+    pub vector_size: usize,
+    pub distance: String,
 }
 
 impl Config {
