@@ -126,7 +126,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Stockage des fragments et leurs embeddings dans Qdrant
 - Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
 - Utilisation des hashs des fragments comme identifiants uniques dans Qdrant pour éviter les doublons (format UUID)
-
+- Affichage de la durée de traitement de chaque fichier à la fin du processus d'indexation
 
 ### Prochaines Étapes
 - Finalisation de l'implémentation du module RAG proxy

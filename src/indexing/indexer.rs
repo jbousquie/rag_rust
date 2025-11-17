@@ -9,6 +9,7 @@ use crate::qdrant_custom_client;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::time::Instant;
 
 #[derive(Debug, Serialize)]
 struct EmbeddingRequest {
@@ -37,6 +38,9 @@ pub async fn index_chunks(
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Indexing {} chunks from file: {}", chunks.len(), filename);
+
+    // Start timing the indexing process
+    let start_time = Instant::now();
 
     // Generate embeddings for all chunks
     let mut chunk_embeddings = Vec::new();
@@ -206,7 +210,15 @@ pub async fn index_chunks(
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }
 
-    println!("Indexing completed for file: {}", filename);
+    // Calculate and display the duration
+    let duration = start_time.elapsed();
+    let seconds = duration.as_secs();
+    let minutes = seconds / 60;
+    let remaining_seconds = seconds % 60;
+    println!(
+        "Indexing completed for file: {} (Duration: {}m {}s)",
+        filename, minutes, remaining_seconds
+    );
     Ok(())
 }
 
@@ -225,6 +237,9 @@ pub fn index_chunks_sync(
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Indexing {} chunks from file: {}", chunks.len(), filename);
+
+    // Start timing the indexing process
+    let start_time = Instant::now();
 
     // Generate embeddings for all chunks
     let mut chunk_embeddings = Vec::new();
@@ -431,6 +446,14 @@ pub fn index_chunks_sync(
         println!("No embeddings to store in Qdrant for file: {}", filename);
     }
 
-    println!("Indexing completed for file: {}", filename);
+    // Calculate and display the duration
+    let duration = start_time.elapsed();
+    let seconds = duration.as_secs();
+    let minutes = seconds / 60;
+    let remaining_seconds = seconds % 60;
+    println!(
+        "Indexing completed for file: {} (Duration: {}m {}s)",
+        filename, minutes, remaining_seconds
+    );
     Ok(())
 }
