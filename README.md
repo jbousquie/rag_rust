@@ -12,6 +12,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   Découpe le contenu en fragments (chunks) de taille configurable
     *   Génère des embeddings pour chaque fragment en appelant Ollama
     *   Stocke les fragments et leurs embeddings dans Qdrant
+    *   Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
 *   **Génération d'Embeddings Locaux :** Utilise une instance [Ollama](https://ollama.ai/) locale (modèle `Qwen3-Embeddings`) pour générer les embeddings nécessaires à l'indexation et à la recherche.
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
@@ -64,6 +65,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 │   │   ├── retriever.rs # Recherche dans Qdrant
 │   │   └── llm_caller.rs # Appel au LLM distant
 ├── data_sources/       # Dossier source pour les documents à indexer
+├── index_tracker.json  # Fichier de suivi des fichiers indexés
 └── ...
 ```
 

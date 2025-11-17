@@ -3,6 +3,8 @@
 //! This binary is responsible for reading documents from the data_sources directory,
 //! processing them through the indexing pipeline (chunking, embedding generation,
 //! and storage in Qdrant), and tracking which files have been processed.
+//! The file tracking system ensures that only new or changed files are re-processed,
+//! significantly improving performance when re-running the indexing process.
 
 use std::fs;
 use std::path::Path;

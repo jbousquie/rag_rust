@@ -3,6 +3,8 @@
 //! This module provides functionality to track which files have been indexed,
 //! and to determine if files have changed since their last indexing.
 //! It uses a JSON file to persist the tracking information between runs.
+//! This allows the indexing process to skip files that haven't changed,
+//! significantly improving performance when re-running the indexing process.
 
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
@@ -106,12 +108,16 @@ impl FileTracker {
 
     /// Gets a list of files that have changed since last tracking
     ///
+    /// This function determines which files need to be re-indexed by comparing
+    /// the current file content with the stored MD5 checksums from the last run.
+    /// Files that haven't changed are skipped to improve performance.
+    ///
     /// # Arguments
     /// * `files` - List of file names to check
     /// * `data_sources_path` - Path to the data sources directory
     ///
     /// # Returns
-    /// * `Vec<String>` - List of file names that have changed
+    /// * `Vec<String>` - List of file names that have changed and need re-indexing
     pub fn get_changed_files(&self, files: &[String], data_sources_path: &str) -> Vec<String> {
         files
             .iter()

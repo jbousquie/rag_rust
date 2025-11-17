@@ -85,14 +85,6 @@ impl Point {
         }
     }
 
-    pub fn from_id_vector(id: &str, vector: Vec<f32>) -> Self {
-        Point {
-            id: serde_json::Value::String(id.to_string()),
-            vector,
-            payload: None,
-        }
-    }
-
     pub fn from_id_vector_payload(id: &str, vector: Vec<f32>, payload: serde_json::Value) -> Self {
         Point {
             id: serde_json::Value::String(id.to_string()),
@@ -304,6 +296,7 @@ impl QdrantClient {
             .into_iter()
             .map(|(chunk_value, vector)| {
                 // Calculate hash of chunk_value using a proper hashing method
+                // This hash is used as the ID for the point to prevent duplicates
                 use std::hash::{Hash, Hasher};
                 let mut hasher = std::collections::hash_map::DefaultHasher::new();
                 chunk_value.hash(&mut hasher);
@@ -311,10 +304,9 @@ impl QdrantClient {
 
                 let payload = serde_json::json!({
                     "text": chunk_value,
-                    "hash": hash_value,
                     "source": filename.clone()
                 });
-                Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)
+                Point::from_id_vector_payload(&hash_value, vector, payload)
             })
             .collect();
 
@@ -355,6 +347,7 @@ impl QdrantClient {
             .into_iter()
             .map(|(chunk_value, vector)| {
                 // Calculate hash of chunk_value using a proper hashing method
+                // This hash is used as the ID for the point to prevent duplicates
                 use std::hash::{Hash, Hasher};
                 let mut hasher = std::collections::hash_map::DefaultHasher::new();
                 chunk_value.hash(&mut hasher);
@@ -362,10 +355,9 @@ impl QdrantClient {
 
                 let payload = serde_json::json!({
                     "text": chunk_value,
-                    "hash": hash_value,
                     "source": filename.clone()
                 });
-                Point::from_id_vector_payload(&uuid::Uuid::new_v4().to_string(), vector, payload)
+                Point::from_id_vector_payload(&hash_value, vector, payload)
             })
             .collect();
 

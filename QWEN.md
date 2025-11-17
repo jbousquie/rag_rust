@@ -119,14 +119,14 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - `tokio` pour la gestion des opérations asynchrones
 - `serde` et `serde_json` pour la gestion des données JSON
 
-### Améliorations Réalisées
-- Correction des problèmes d'importation et d'utilisation de l'API Qdrant client
-- Utilisation correcte du builder pattern pour la création de collections et d'insertion de points
-- Gestion correcte des opérations asynchrones dans le code
-- Adaptation du point d'entrée principal pour gérer les opérations asynchrones dans une fonction synchrone
-- Correction des erreurs de compilation liées à l'API Qdrant
-- Ajout de la méthode `collection_exists()` pour vérifier l'existence de collections dans Qdrant
-- Ajout des méthodes `create_collection()` et `create_collection_blocking()` pour créer de nouvelles collections dans Qdrant
+### Fonctionnalités Implémentées
+- Indexation des documents depuis le dossier `data_sources/`
+- Découpage des documents en fragments de taille configurable
+- Génération des embeddings via Ollama
+- Stockage des fragments et leurs embeddings dans Qdrant
+- Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
+- Utilisation des hashs des fragments comme identifiants uniques dans Qdrant pour éviter les doublons
+
 
 ### Prochaines Étapes
 - Finalisation de l'implémentation du module RAG proxy
