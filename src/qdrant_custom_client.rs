@@ -300,13 +300,24 @@ impl QdrantClient {
                 use std::hash::{Hash, Hasher};
                 let mut hasher = std::collections::hash_map::DefaultHasher::new();
                 chunk_value.hash(&mut hasher);
-                let hash_value = format!("{:x}", hasher.finish());
+                let hash_value = format!("{:0>32x}", hasher.finish());
+
+                // Convert hash to a UUID format to comply with Qdrant requirements
+                // Format: 8-4-4-4-12 hex digits (like 550e8400-e29b-41d4-a716-446655440000)
+                let uuid_string = format!(
+                    "{}-{}-{}-{}-{}",
+                    &hash_value[..8],
+                    &hash_value[8..12],
+                    &hash_value[12..16],
+                    &hash_value[16..20],
+                    &hash_value[20..32]
+                );
 
                 let payload = serde_json::json!({
                     "text": chunk_value,
                     "source": filename.clone()
                 });
-                Point::from_id_vector_payload(&hash_value, vector, payload)
+                Point::from_id_vector_payload(&uuid_string, vector, payload)
             })
             .collect();
 
@@ -319,7 +330,16 @@ impl QdrantClient {
             .json(&request_body)
             .send()
             .await?;
-        Ok(response.status() == 200)
+
+        // Log the response status for debugging
+        let status = response.status();
+        println!("Qdrant upsert response status: {}", status);
+        if !status.is_success() {
+            // Try to get the error details from the response body
+            let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+            println!("Qdrant error details: {}", error_text);
+        }
+        Ok(status == 200)
     }
 
     /// Blocking version of upsert_points for synchronous contexts
@@ -351,24 +371,43 @@ impl QdrantClient {
                 use std::hash::{Hash, Hasher};
                 let mut hasher = std::collections::hash_map::DefaultHasher::new();
                 chunk_value.hash(&mut hasher);
-                let hash_value = format!("{:x}", hasher.finish());
+                let hash_value = format!("{:0>32x}", hasher.finish());
+
+                // Convert hash to a UUID format to comply with Qdrant requirements
+                // Format: 8-4-4-4-12 hex digits (like 550e8400-e29b-41d4-a716-446655440000)
+                let uuid_string = format!(
+                    "{}-{}-{}-{}-{}",
+                    &hash_value[..8],
+                    &hash_value[8..12],
+                    &hash_value[12..16],
+                    &hash_value[16..20],
+                    &hash_value[20..32]
+                );
 
                 let payload = serde_json::json!({
                     "text": chunk_value,
                     "source": filename.clone()
                 });
-                Point::from_id_vector_payload(&hash_value, vector, payload)
+                Point::from_id_vector_payload(&uuid_string, vector, payload)
             })
             .collect();
 
         let request_body = UpsertPointsRequest { points };
-
         let response = client
             .put(&url)
             .header("api-key", &self.api_key)
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()?;
-        Ok(response.status() == 200)
+
+        // Log the response status for debugging
+        let status = response.status();
+        println!("Qdrant upsert response status: {}", status);
+        if !status.is_success() {
+            // Try to get the error details from the response body
+            let error_text = response.text().unwrap_or_else(|_| "Failed to read error response".to_string());
+            println!("Qdrant error details: {}", error_text);
+        }
+        Ok(status == 200)
     }
 }

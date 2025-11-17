@@ -125,7 +125,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Génération des embeddings via Ollama
 - Stockage des fragments et leurs embeddings dans Qdrant
 - Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
-- Utilisation des hashs des fragments comme identifiants uniques dans Qdrant pour éviter les doublons
+- Utilisation des hashs des fragments comme identifiants uniques dans Qdrant pour éviter les doublons (format UUID)
 
 
 ### Prochaines Étapes
