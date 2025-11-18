@@ -63,7 +63,13 @@ Ce module gère tout le processus de transformation des documents bruts en vecte
 Ce module contient toute la logique du serveur HTTP.
 -   `mod.rs` : Déclare les sous-modules et expose la fonction principale pour démarrer le serveur.
 -   `server.rs` : Configure et lance le serveur web `axum`, définit les routes et attache les gestionnaires (handlers).
--   `handler.rs` : Contient la logique principale de traitement d'une requête HTTP. C'est ici que le flux RAG (embedding, recherche, appel LLM) est exécuté.
+-   `handler.rs` : Contient la logique principale de traitement d'une requête HTTP. C'est ici que le flux RAG (embedding, recherche, appel LLM) est exécuté. Le handler :
+    *   Reçoit les requêtes du client
+    *   Calcule l'embedding de la requête utilisateur
+    *   Interroge Qdrant pour trouver les fragments similaires stockés
+    *   Construit un prompt enrichi avec le contexte récupéré
+    *   Envoie le prompt au LLM distant
+    *   Retourne la réponse au client
 -   `retriever.rs` : Gère spécifiquement l'interaction avec Qdrant. Il prend une question, la vectorise et effectue la recherche de similarité pour récupérer le contexte.
 -   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
 
@@ -138,6 +144,8 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Affichage de la durée de traitement de chaque fichier à la fin du processus d'indexation
 - Serveur HTTP Axum avec endpoint `/v1/chat/completions` configurable via `config.toml`
 - Intégration complète du flux RAG : embedding → recherche → appel LLM → réponse
+- Gestion correcte des erreurs dans les interactions avec Qdrant (corrigé les problèmes de parsing JSON)
+- Traitement correct des requêtes utilisateur avec calcul des embeddings et recherche dans Qdrant
 
 ### Prochaines Étapes
 - Tests complets de l'ensemble du système

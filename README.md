@@ -18,6 +18,13 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
 *   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
 *   **Serveur HTTP Axum :** Le proxy RAG est implémenté avec un serveur HTTP Axum qui expose l'endpoint `/v1/chat/completions` configurable via `config.toml`.
+*   **Traitement des Requêtes Utilisateur :** Le handler pour les requêtes utilisateur :
+    *   Reçoit les requêtes du client
+    *   Calcule l'embedding de la requête utilisateur
+    *   Interroge Qdrant pour trouver les fragments similaires stockés
+    *   Construit un prompt enrichi avec le contexte récupéré
+    *   Envoie le prompt au LLM distant
+    *   Retourne la réponse au client
 
 ## Prérequis
 
@@ -128,9 +135,8 @@ Le projet utilise un fichier central de configuration `config.toml` qui permet d
 
 Le fichier de configuration permet de centraliser la configuration de l'application et d'éviter la configuration manuelle via les variables d'environnement ou les arguments de ligne de commande.
 
-### Nouveaux paramètres Qdrant
+### Paramètres Qdrant
 
-Les nouveaux paramètres `vector_size` et `distance` ont été ajoutés à la section `[qdrant]` pour permettre une configuration personnalisée de la collection Qdrant :
 
 ```toml
 [qdrant]
@@ -138,16 +144,18 @@ Les nouveaux paramètres `vector_size` et `distance` ont été ajoutés à la se
 host = "localhost"
 port = 6333
 api_key = "qdrantapikey"
-collection = "rag_documents"
-vector_size = 4096
-distance = "Cosine"
+collection = "rag_documents"   # nom de la collection
+vector_size = 4096             # taille des vecteurs dans la collection
+distance = "Cosine"            # distance de similarité utilisée dans la base de données vectorielle
+limit = 10                     # nombre maximum de résultats pour les requêtes
+score_threshold = 0.7          # seuil de score pour les résultats de recherche f32
 ```
 
 Ces paramètres permettent de spécifier la taille des vecteurs et la distance de similarité utilisée dans la base de données vectorielle, ce qui correspond à la configuration de votre modèle d'embedding.
 
 ### Endpoint configurable
 
-L'endpoint `/v1/chat/completions` du proxy RAG est maintenant configurable via `config.toml` dans la section `[rag_proxy]` :
+L'endpoint `/v1/chat/completions` du proxy RAG est configurable via `config.toml` dans la section `[rag_proxy]` :
 
 ```toml
 [rag_proxy]
