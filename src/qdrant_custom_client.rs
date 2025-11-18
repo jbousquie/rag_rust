@@ -5,6 +5,7 @@
 //! https://api.qdrant.tech/api-reference/points/upsert-points
 
 use reqwest;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,6 +15,7 @@ pub struct QdrantClient {
     pub api_key: String,
     pub vector_size: u64,
     pub distance: String,
+    pub limit: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,6 +66,39 @@ pub struct UpsertPointsRequest {
     pub points: Vec<Point>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchPointsRequest {
+    pub vector: Vec<f32>,
+    pub limit: u64,
+    pub filter: Option<serde_json::Value>,
+    pub with_payload: Option<bool>,
+    pub with_vector: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchPointsResponse {
+    pub result: SearchPointsResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchPointsResult {
+    pub points: Vec<ScoredPoint>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchPointsPayload {
+    pub source: String,
+    pub text: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScoredPoint {
+    pub id: serde_json::Value,
+    pub vector: Option<Vec<f32>>,
+    pub payload: Option<SearchPointsPayload>,
+    pub score: f32,
+    pub version: u64,
+}
+
 // https://api.qdrant.tech/api-reference/points/upsert-points
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Point {
@@ -112,6 +147,7 @@ impl QdrantClient {
         api_key: String,
         vector_size: u64,
         distance: String,
+        limit: u64,
     ) -> Self {
         QdrantClient {
             host,
@@ -119,6 +155,7 @@ impl QdrantClient {
             api_key,
             vector_size,
             distance,
+            limit,
         }
     }
 
@@ -336,7 +373,10 @@ impl QdrantClient {
         println!("Qdrant upsert response status: {}", status);
         if !status.is_success() {
             // Try to get the error details from the response body
-            let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read error response".to_string());
             println!("Qdrant error details: {}", error_text);
         }
         Ok(status == 200)
@@ -405,9 +445,150 @@ impl QdrantClient {
         println!("Qdrant upsert response status: {}", status);
         if !status.is_success() {
             // Try to get the error details from the response body
-            let error_text = response.text().unwrap_or_else(|_| "Failed to read error response".to_string());
+            let error_text = response
+                .text()
+                .unwrap_or_else(|_| "Failed to read error response".to_string());
             println!("Qdrant error details: {}", error_text);
         }
         Ok(status == 200)
+    }
+
+    /// Searches for points in a Qdrant collection based on a question embedding
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to search in
+    /// * `question_vector` - Vector representation of the question
+    /// * `limit` - Maximum number of results to return
+    /// * `filter` - Optional filter to apply to the search
+    ///
+    /// # Returns
+    /// * `Result<Vec<ScoredPoint>, String>` - Search results or error message
+    pub async fn search_points(
+        &self,
+        collection_name: &str,
+        question_vector: Vec<f32>,
+        limit: u64,
+        filter: Option<serde_json::Value>,
+    ) -> Result<Vec<ScoredPoint>, String> {
+        let client = reqwest::Client::new();
+        let url = format!(
+            "http://{}:{}/collections/{}/points/query",
+            self.host, self.port, collection_name
+        );
+
+        // Create the query request body for the new endpoint
+        let mut request_body = serde_json::json!({
+            "vector": question_vector,
+            "limit": limit,
+            "with_payload": true,
+            "with_vector": false
+        });
+
+        // Add filter if provided
+        if let Some(f) = filter {
+            request_body["filter"] = f;
+        }
+
+        let response = client
+            .post(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send request: {}", e))?;
+
+        if response.status() != StatusCode::OK {
+            return Err(format!(
+                "Request failed with status code: {}",
+                response.status()
+            ));
+        }
+
+        // Store the text response for debugging
+        let response_text = response
+            .text()
+            .await
+            .map_err(|e| format!("Failed to read response text: {}", e))?;
+
+        println!("{}", response_text);
+        // Parse the JSON response
+        let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Failed to parse JSON response: {}", e)),
+        };
+
+        println!("{:?}", search_response);
+
+        // Return the parsed points
+        Ok(search_response.result.points)
+    }
+
+    /// Blocking version of search_points for synchronous contexts
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to search in
+    /// * `question_vector` - Vector representation of the question
+    /// * `limit` - Maximum number of results to return
+    /// * `filter` - Optional filter to apply to the search
+    ///
+    /// # Returns
+    /// * `Result<Vec<ScoredPoint>, String>` - Search results or error message
+    pub fn search_points_blocking(
+        &self,
+        collection_name: &str,
+        question_vector: Vec<f32>,
+        limit: u64,
+        filter: Option<serde_json::Value>,
+    ) -> Result<Vec<ScoredPoint>, String> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!(
+            "http://{}:{}/collections/{}/points/query",
+            self.host, self.port, collection_name
+        );
+
+        // Create the query request body for the new endpoint
+        let mut request_body = serde_json::json!({
+            "vector": question_vector,
+            "limit": limit,
+            "with_payload": true,
+            "with_vector": false
+        });
+
+        // Add filter if provided
+        if let Some(f) = filter {
+            request_body["filter"] = f;
+        }
+
+        let response = client
+            .post(&url)
+            .header("api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .map_err(|e| format!("Failed to send request: {}", e))?;
+
+        if response.status() != StatusCode::OK {
+            return Err(format!(
+                "Request failed with status code: {}",
+                response.status()
+            ));
+        }
+
+        // Store the text response for debugging
+        let response_text = response
+            .text()
+            .map_err(|e| format!("Failed to read response text: {}", e))?;
+
+        println!("{}", response_text);
+
+        // Parse the JSON response
+        let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Failed to parse JSON response: {}", e)),
+        };
+
+        // Return the parsed points
+        Ok(search_response.result.points)
     }
 }

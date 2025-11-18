@@ -41,3 +41,4 @@ api_key = "qdrantapikey"
 collection = "rag_documents"
 vector_size = 4096
 distance = "Cosine"
+limit = 10

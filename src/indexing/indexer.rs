@@ -134,6 +134,7 @@ pub async fn index_chunks(
             config.qdrant.api_key.clone(),
             config.qdrant.vector_size as u64,
             config.qdrant.distance.clone(),
+            config.qdrant.limit as u64,
         );
 
         match qdrant_client.health_check().await {
@@ -334,6 +335,7 @@ pub fn index_chunks_sync(
             config.qdrant.api_key.clone(),
             config.qdrant.vector_size as u64,
             config.qdrant.distance.clone(),
+            config.qdrant.limit as u64,
         );
 
         match qdrant_client.health_check_blocking() {

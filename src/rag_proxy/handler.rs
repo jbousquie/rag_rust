@@ -8,7 +8,6 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::Config;
 use crate::load_config;
 use crate::rag_proxy::llm_caller::call_llm;
 use crate::rag_proxy::retriever::retrieve_context;
