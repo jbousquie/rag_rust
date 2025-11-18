@@ -16,6 +16,7 @@ pub struct QdrantClient {
     pub vector_size: u64,
     pub distance: String,
     pub limit: u64,
+    pub score_threshold: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -70,6 +71,7 @@ pub struct UpsertPointsRequest {
 pub struct SearchPointsRequest {
     pub vector: Vec<f32>,
     pub limit: u64,
+    pub score_threshold: f32,
     pub filter: Option<serde_json::Value>,
     pub with_payload: Option<bool>,
     pub with_vector: Option<bool>,
@@ -138,6 +140,8 @@ impl QdrantClient {
     /// * `api_key` - The API key for authentication
     /// * `vector_size` - The size of the vectors to be stored
     /// * `distance` - The distance metric to use for vector similarity
+    /// * `limit` - The max number of result to return
+    /// * `score_threshold` - Only the points with score better than the threshold are returned
     ///
     /// # Returns
     /// * `QdrantClient` - A new instance of the Qdrant client
@@ -148,6 +152,7 @@ impl QdrantClient {
         vector_size: u64,
         distance: String,
         limit: u64,
+        score_threshold: f32,
     ) -> Self {
         QdrantClient {
             host,
@@ -156,6 +161,7 @@ impl QdrantClient {
             vector_size,
             distance,
             limit,
+            score_threshold,
         }
     }
 
@@ -459,6 +465,7 @@ impl QdrantClient {
     /// * `collection_name` - Name of the collection to search in
     /// * `question_vector` - Vector representation of the question
     /// * `limit` - Maximum number of results to return
+    /// * `score_threshold` - Only the points with score better than the threshold are returned
     /// * `filter` - Optional filter to apply to the search
     ///
     /// # Returns
@@ -468,6 +475,7 @@ impl QdrantClient {
         collection_name: &str,
         question_vector: Vec<f32>,
         limit: u64,
+        score_threshold: f32,
         filter: Option<serde_json::Value>,
     ) -> Result<Vec<ScoredPoint>, String> {
         let client = reqwest::Client::new();
@@ -478,12 +486,12 @@ impl QdrantClient {
 
         // Create the query request body for the new endpoint
         let mut request_body = serde_json::json!({
-            "vector": question_vector,
+            "query": question_vector,
             "limit": limit,
+            "score_threshold": score_threshold,
             "with_payload": true,
             "with_vector": false
         });
-
         // Add filter if provided
         if let Some(f) = filter {
             request_body["filter"] = f;
@@ -518,8 +526,6 @@ impl QdrantClient {
             Err(e) => return Err(format!("Failed to parse JSON response: {}", e)),
         };
 
-        println!("{:?}", search_response);
-
         // Return the parsed points
         Ok(search_response.result.points)
     }
@@ -530,6 +536,7 @@ impl QdrantClient {
     /// * `collection_name` - Name of the collection to search in
     /// * `question_vector` - Vector representation of the question
     /// * `limit` - Maximum number of results to return
+    /// * `score_threshold` - Only the points with score better than the threshold are returned
     /// * `filter` - Optional filter to apply to the search
     ///
     /// # Returns
@@ -539,6 +546,7 @@ impl QdrantClient {
         collection_name: &str,
         question_vector: Vec<f32>,
         limit: u64,
+        score_threshold: f32,
         filter: Option<serde_json::Value>,
     ) -> Result<Vec<ScoredPoint>, String> {
         let client = reqwest::blocking::Client::new();
@@ -549,8 +557,9 @@ impl QdrantClient {
 
         // Create the query request body for the new endpoint
         let mut request_body = serde_json::json!({
-            "vector": question_vector,
+            "query": question_vector,
             "limit": limit,
+            "score_threshold": score_threshold,
             "with_payload": true,
             "with_vector": false
         });

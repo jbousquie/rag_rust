@@ -42,3 +42,4 @@ collection = "rag_documents"
 vector_size = 4096
 distance = "Cosine"
 limit = 10
+score_threshold = 0.5

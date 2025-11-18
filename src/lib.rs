@@ -58,6 +58,7 @@ pub struct QdrantConfig {
     pub vector_size: usize,
     pub distance: String,
     pub limit: u64,
+    pub score_threshold: f32,
 }
 
 impl Config {

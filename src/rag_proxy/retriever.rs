@@ -87,6 +87,7 @@ pub async fn retrieve_context(
         config.qdrant.vector_size as u64,
         config.qdrant.distance.clone(),
         config.qdrant.limit as u64,
+        config.qdrant.score_threshold as f32,
     );
 
     // Search Qdrant for similar documents using the question embedding
@@ -95,6 +96,7 @@ pub async fn retrieve_context(
             &config.qdrant.collection,
             question_embedding,
             config.qdrant.limit,
+            config.qdrant.score_threshold,
             None,
         )
         .await
