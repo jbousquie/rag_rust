@@ -144,6 +144,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Affichage de la durée de traitement de chaque fichier à la fin du processus d'indexation
 - Serveur HTTP Axum avec endpoint `/v1/chat/completions` configurable via `config.toml`
 - Intégration complète du flux RAG : embedding → recherche → appel LLM → réponse
+- Amélioration de l'expérience utilisateur : le contexte récupéré est maintenant inclus dans le prompt envoyé au LLM pour améliorer la pertinence des réponses
 - Gestion correcte des erreurs dans les interactions avec Qdrant (corrigé les problèmes de parsing JSON)
 - Traitement correct des requêtes utilisateur avec calcul des embeddings et recherche dans Qdrant
 

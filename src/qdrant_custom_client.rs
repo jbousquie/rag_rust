@@ -519,7 +519,6 @@ impl QdrantClient {
             .await
             .map_err(|e| format!("Failed to read response text: {}", e))?;
 
-        println!("{}", response_text);
         // Parse the JSON response
         let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {
             Ok(resp) => resp,
@@ -588,8 +587,6 @@ impl QdrantClient {
         let response_text = response
             .text()
             .map_err(|e| format!("Failed to read response text: {}", e))?;
-
-        println!("{}", response_text);
 
         // Parse the JSON response
         let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {

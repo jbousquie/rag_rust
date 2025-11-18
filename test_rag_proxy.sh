@@ -12,7 +12,7 @@ curl -X POST http://127.0.0.1:3000/v1/chat/completions \
     "messages": [
       {
         "role": "user",
-        "content": "Le MiniLab MkII connecté en USB sur son ordinateur peut-il piloter un DAW ?"
+        "content": "Que peux-tu me dire à propos de Zorglub ?"
       }
     ],
     "stream": false

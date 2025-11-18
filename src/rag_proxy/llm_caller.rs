@@ -44,7 +44,7 @@ pub async fn call_llm(prompt: &str, config: &Config) -> Result<String, Box<dyn s
         .json(&payload)
         .send()
         .await?;
-
+    println!("{:?}", response);
     // Parse the response
     let response_json: serde_json::Value = response.json().await?;
 

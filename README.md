@@ -25,6 +25,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   Construit un prompt enrichi avec le contexte récupéré
     *   Envoie le prompt au LLM distant
     *   Retourne la réponse au client
+    *   **Amélioration :** Le contexte récupéré est maintenant inclus dans le prompt envoyé au LLM pour améliorer la pertinence des réponses.
 
 ## Prérequis
 

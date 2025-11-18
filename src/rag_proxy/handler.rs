@@ -99,14 +99,21 @@ pub async fn handle_rag_request(Json(request): Json<ChatCompletionRequest>) -> i
         }
     };
 
-    // Construct the prompt with context
-    let prompt = format!(
-        "Context: {}\n\nQuestion: {}\n\nAnswer:",
-        context, user_question
-    );
+    // Create enhanced prompt with context and source information
+    let enhanced_prompt = if context.is_empty() {
+        format!(
+            "Question: {}\n\nAnswer:",
+            user_question
+        )
+    } else {
+        format!(
+            "Context: {}\n\nQuestion: {}\n\nAnswer:",
+            context, user_question
+        )
+    };
 
     // Call the LLM with the constructed prompt
-    let response = match call_llm(&prompt, &config).await {
+    let response = match call_llm(&enhanced_prompt, &config).await {
         Ok(resp) => resp,
         Err(e) => {
             eprintln!("Error calling LLM: {}", e);

@@ -112,6 +112,5 @@ pub async fn retrieve_context(
         .map(|payload| payload.text)
         .collect::<Vec<String>>()
         .join("\n\n");
-
     Ok(context)
 }
