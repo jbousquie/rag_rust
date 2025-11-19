@@ -152,3 +152,11 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Tests complets de l'ensemble du système
 - Documentation complète du projet
 - Configuration de l'environnement de développement et de déploiement
+
+## 6. Problèmes Connus et Résolutions
+
+### Problème avec QwenCLI
+- **Description** : Lors de l'utilisation de QwenCLI avec le proxy, un erreur "Model stream ended without a finish reason" est observée.
+- **Analyse** : Le proxy fonctionne correctement avec curl et le script de test. L'erreur est causée par un incompatibilité entre les attentes de QwenCLI et la réponse du proxy.
+- **Résolution** : Le proxy est correctement configuré avec `stream: false` lors de l'appel au LLM, ce qui est le comportement approprié pour ce type d'implémentation. L'erreur est un problème de compatibilité client (QwenCLI) et non du proxy lui-même.
+- **Impact** : Cette erreur n'affecte pas le fonctionnement du proxy, qui continue de fonctionner correctement avec d'autres clients.

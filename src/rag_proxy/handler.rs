@@ -5,7 +5,7 @@
 //! the request, retrieving relevant context from Qdrant, and calling the LLM with
 //! the combined prompt to generate a response.
 
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{Json, body::Bytes, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::load_config;
@@ -24,13 +24,32 @@ pub struct ChatCompletionRequest {
     pub stream: Option<bool>,
 }
 
+/// Content of a message - can be either a string or an array of content parts
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum MessageContent {
+    /// Simple text content
+    Text(String),
+    /// Array of content parts (used in multimodal messages)
+    Parts(Vec<ContentPart>),
+}
+
+/// A part of content in a message
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContentPart {
+    /// Type of the content part
+    pub r#type: String,
+    /// Text content (only for text type)
+    pub text: Option<String>,
+}
+
 /// A message in the conversation
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChatMessage {
     /// The role of the message sender (user, assistant, system)
     pub role: String,
     /// The content of the message
-    pub content: String,
+    pub content: MessageContent,
 }
 
 /// Chat completion response structure
@@ -70,80 +89,114 @@ pub struct Choice {
 /// 5. Returning the LLM's response in OpenAI API compatible format
 ///
 /// # Arguments
-/// * `Json(request)` - The incoming chat completion request
+/// * `request` - The incoming chat completion request as raw bytes
 ///
 /// # Returns
 /// * `impl IntoResponse` - The chat completion response in JSON format
-pub async fn handle_rag_request(Json(request): Json<ChatCompletionRequest>) -> impl IntoResponse {
-    // Extract the user's question from the messages
-    let user_question = request
-        .messages
-        .iter()
-        .find(|msg| msg.role == "user")
-        .map(|msg| msg.content.clone())
-        .unwrap_or_else(|| "No question provided".to_string());
+pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
+    // Debug: Print the raw request to understand the format
+    //println!("Raw request received: {:?}", std::str::from_utf8(&request));
 
-    // Load configuration
-    let config = load_config();
+    // Parse the request manually to see what's happening
+    let parsed_request: Result<ChatCompletionRequest, serde_json::Error> =
+        serde_json::from_slice(&request);
 
-    // Retrieve relevant context from Qdrant
-    let context = match retrieve_context(&user_question, &config).await {
-        Ok(ctx) => ctx,
-        Err(e) => {
-            eprintln!("Error retrieving context: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to retrieve context",
-            )
-                .into_response();
+    match parsed_request {
+        Ok(req) => {
+            //println!("Successfully parsed request: {:?}", req);
+            // Extract the user's question from the messages
+            let user_question = req
+                .messages
+                .iter()
+                .find(|msg| msg.role == "user")
+                .map(|msg| {
+                    match &msg.content {
+                        MessageContent::Text(text) => text.clone(),
+                        MessageContent::Parts(parts) => {
+                            // For multimodal messages, concatenate all text parts
+                            parts
+                                .iter()
+                                .filter_map(|part| {
+                                    if part.r#type == "text" {
+                                        part.text.clone()
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        }
+                    }
+                })
+                .unwrap_or_else(|| "No question provided".to_string());
+
+            // Load configuration
+            let config = load_config();
+
+            // Retrieve relevant context from Qdrant
+            let context = match retrieve_context(&user_question, &config).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    eprintln!("Error retrieving context: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to retrieve context",
+                    )
+                        .into_response();
+                }
+            };
+
+            // Create enhanced prompt with context and source information
+            let enhanced_prompt = if context.is_empty() {
+                format!("Question: {}\n\nAnswer:", user_question)
+            } else {
+                format!(
+                    "Context: {}\n\nQuestion: {}\n\nAnswer:",
+                    context, user_question
+                )
+            };
+
+            println!("Enhanced prompt: {}", enhanced_prompt);
+
+            // Call the LLM with the constructed prompt
+            let response = match call_llm(&enhanced_prompt, &config).await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    eprintln!("Error calling LLM: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to get response from LLM",
+                    )
+                        .into_response();
+                }
+            };
+
+            // Create and return the response
+            let chat_response = ChatCompletionResponse {
+                id: "chatcmpl-123".to_string(),
+                object: "chat.completion".to_string(),
+                created: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
+                model: config.llm.model.clone(),
+                choices: vec![Choice {
+                    index: 0,
+                    message: ChatMessage {
+                        role: "assistant".to_string(),
+                        content: MessageContent::Text(response),
+                    },
+                    finish_reason: Some("stop".to_string()),
+                }],
+            };
+            println!("{:?}", chat_response);
+            // Return the response as JSON
+            Json(chat_response).into_response()
         }
-    };
-
-    // Create enhanced prompt with context and source information
-    let enhanced_prompt = if context.is_empty() {
-        format!(
-            "Question: {}\n\nAnswer:",
-            user_question
-        )
-    } else {
-        format!(
-            "Context: {}\n\nQuestion: {}\n\nAnswer:",
-            context, user_question
-        )
-    };
-
-    // Call the LLM with the constructed prompt
-    let response = match call_llm(&enhanced_prompt, &config).await {
-        Ok(resp) => resp,
         Err(e) => {
-            eprintln!("Error calling LLM: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to get response from LLM",
-            )
-                .into_response();
+            eprintln!("Failed to parse request: {}", e);
+            eprintln!("Raw request content: {:?}", std::str::from_utf8(&request));
+            (StatusCode::BAD_REQUEST, "Failed to parse request").into_response()
         }
-    };
-
-    // Create and return the response
-    let chat_response = ChatCompletionResponse {
-        id: "chatcmpl-123".to_string(),
-        object: "chat.completion".to_string(),
-        created: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs(),
-        model: config.llm.model.clone(),
-        choices: vec![Choice {
-            index: 0,
-            message: ChatMessage {
-                role: "assistant".to_string(),
-                content: response,
-            },
-            finish_reason: Some("stop".to_string()),
-        }],
-    };
-
-    // Return the response as JSON
-    Json(chat_response).into_response()
+    }
 }
