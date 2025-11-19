@@ -10,9 +10,11 @@ use axum::{
     routing::{get, post},
 };
 use std::net::SocketAddr;
+use std::env;
 
 use crate::load_config;
 use crate::rag_proxy::handler::handle_rag_request;
+use crate::rag_proxy::passthrough_handler::handle_passthrough_request;
 use tokio::net::TcpListener;
 
 /// Starts the RAG proxy server
@@ -23,18 +25,32 @@ use tokio::net::TcpListener;
 /// # Returns
 /// * `Result<(), Box<dyn std::error::Error>>` - Success or error
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
+    // Check for passthrough argument from environment
+    let args: Vec<String> = env::args().collect();
+    let passthrough_mode = args.iter().any(|arg| arg == "--passthrough");
+
     // Load configuration from config.toml
     let config = load_config();
 
     // Build the application with routes
-    let app = Router::new()
-        // Route for chat completions (OpenAI API compatible endpoint)
-        .route(
+    let app = Router::new();
+
+    let app = if passthrough_mode {
+        // Use passthrough handler
+        app.route(
+            &config.rag_proxy.chat_completion_endpoint,
+            post(handle_passthrough_request),
+        )
+    } else {
+        // Use RAG handler
+        app.route(
             &config.rag_proxy.chat_completion_endpoint,
             post(handle_rag_request),
         )
-        // Health check endpoint
-        .route("/health", get(health_check));
+    };
+
+    // Add health check endpoint to the app
+    let app = app.route("/health", get(health_check));
 
     // Create the socket address from configuration
     let addr = SocketAddr::from((

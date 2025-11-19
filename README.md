@@ -26,6 +26,10 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   Envoie le prompt au LLM distant
     *   Retourne la réponse au client
     *   **Amélioration :** Le contexte récupéré est maintenant inclus dans le prompt envoyé au LLM pour améliorer la pertinence des réponses.
+    *   **Amélioration :** Ajout du champ `usage` dans les réponses pour une meilleure compatibilité avec différents clients
+    *   **Amélioration :** Ajout des headers HTTP appropriés pour une meilleure compatibilité avec QwenCLI
+    *   **Mode de débogage :** Ajout d'un mode `--passthrough` pour le proxy qui fait simplement du relais sans traitement RAG
+    *   **Amélioration :** Le proxy RAG préserve maintenant exactement la structure originale des requêtes, en étendant uniquement le message système existant avec le contexte RAG (comportement de type 'passthrough' pour la structure des requêtes)
 
 ## Prérequis
 

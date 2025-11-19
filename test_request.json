@@ -1,0 +1,10 @@
+{
+  "model": "qwen3-coder-dual",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Who created Zorglub?"
+    }
+  ],
+  "stream": false
+}

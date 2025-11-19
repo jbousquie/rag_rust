@@ -6,38 +6,47 @@
 
 use crate::Config;
 use reqwest;
-use serde_json::json;
+use serde::{Deserialize, Serialize};
 
-/// Calls the LLM service with the provided prompt
+use crate::rag_proxy::handler::ChatMessage;
+
+// Define the structures needed for the LLM call to avoid circular dependencies
+#[derive(Serialize, Deserialize, Debug)]
+struct LlmRequest {
+    model: String,
+    messages: Vec<ChatMessage>,
+    stream: bool,
+}
+
+/// Calls the LLM service with the provided request
 ///
-/// This function takes a prompt string and sends it to the configured LLM endpoint.
-/// It constructs the appropriate request payload in OpenAI API format and returns
-/// the LLM's response text.
+/// This function takes a complete ChatCompletionRequest and sends it to the configured LLM endpoint.
+/// It preserves the original request structure with added context and returns the LLM's response text.
 ///
 /// # Arguments
-/// * `prompt` - The prompt to send to the LLM
+/// * `messages` - The complete message array with context added
+/// * `model` - The model name to use
 /// * `config` - The application configuration
 ///
 /// # Returns
 /// * `Result<String, Box<dyn std::error::Error>>` - The LLM's response text or an error
-pub async fn call_llm(prompt: &str, config: &Config) -> Result<String, Box<dyn std::error::Error>> {
-    // Create the request payload with proper message structure
-    let payload = json!({
-        "model": config.llm.model,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "stream": false
-    });
+pub async fn call_llm_with_messages(
+    messages: Vec<ChatMessage>,
+    model: String,
+    config: &Config,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Create the request payload with the full message structure
+    let payload = LlmRequest {
+        model,
+        messages,
+        stream: false, // Always set to false to avoid streaming which may not be handled properly by clients
+    };
 
     // Create HTTP client
     let client = reqwest::Client::new();
 
     // Log the request payload for debugging
-    println!("LLM Request payload: {:?}", payload);
+    //println!("LLM Request payload: {:?}", payload);
 
     // Send request to LLM endpoint
     let response = client
@@ -50,7 +59,7 @@ pub async fn call_llm(prompt: &str, config: &Config) -> Result<String, Box<dyn s
 
     // Log the raw response for debugging
     let raw_response = response.text().await?;
-    println!("LLM Raw response: {}", raw_response);
+    //println!("LLM Raw response: {}", raw_response);
 
     // Parse the response
     let response_json: serde_json::Value = serde_json::from_str(&raw_response)?;

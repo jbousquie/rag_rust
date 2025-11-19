@@ -8,3 +8,4 @@ pub mod server;
 pub mod handler;
 pub mod retriever;
 pub mod llm_caller;
+pub mod passthrough_handler;
