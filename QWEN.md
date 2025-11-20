@@ -326,3 +326,52 @@ Pour améliorer encore la compatibilité avec différents clients :
 2. **Implémenter des tests spécifiques pour différents clients** : Tester avec des structures JSON variées provenant de différents clients
 3. **Ajouter des logs détaillés** : Pour mieux comprendre les structures JSON reçues et les erreurs potentielles
 4. **Utiliser des schémas de validation** : Pour valider les structures JSON reçues et fournir des erreurs explicites
+
+## 9. Gestion des erreurs PDF et problème avec pdf-extract
+
+### Problème identifié
+
+Lors du traitement de fichiers PDF volumineux (par exemple, un PDF de 3500 pages), le projet rencontrait une panique dans la crate `pdf-extract` avec l'erreur suivante :
+
+```
+thread 'main' (622612) panicked at /home/jerome/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pdf-extract-0.10.0/src/lib.rs:1383:31: called `Option::unwrap()` on a `None` value
+```
+
+### Analyse
+
+L'erreur se produisait à l'intérieur de la crate `pdf-extract` elle-même, plus précisément dans le code qui manipule les pages du PDF. Lorsqu'un PDF est trop volumineux ou possède une structure particulière, certaines opérations peuvent échouer et renvoyer `None` au lieu d'une valeur valide, mais la crate effectue un `unwrap()` sur cette valeur sans vérification préalable.
+
+### Solution mise en œuvre
+
+Pour résoudre ce problème, nous avons implémenté une gestion d'erreur robuste en utilisant `std::panic::catch_unwind` pour intercepter les paniques qui se produisent lors de l'extraction du texte des fichiers PDF. Cette approche permet au système de continuer à fonctionner même si un PDF spécifique provoque une panique dans la crate `pdf-extract`.
+
+### Détails de l'implémentation
+
+1. **Protection des fonctions de chargement PDF** : Les fonctions `load_pdf` (asynchrone) et `load_pdf_blocking` (synchrone) dans le module `src/indexing/loader.rs` sont maintenant encapsulées dans des appels `catch_unwind`.
+2. **Gestion des paniques** : Si une panique se produit pendant l'extraction du texte, au lieu de faire planter le processus, le système retourne une chaîne vide, permettant au reste du processus d'indexation de continuer.
+3. **Journalisation des incidents** : Des logs sont ajoutés pour signaler quand une panique se produit, permettant une surveillance de ces incidents.
+
+### Alternative explorée
+
+Nous avons exploré plusieurs alternatives avant de choisir cette solution :
+
+1. **Changement de crate** : Nous avons essayé de migrer vers la crate `pdf-text`, mais cela a posé des problèmes de compilation avec les dépendances Cairo.
+2. **Utilisation de la crate pdf** : Cette solution était trop complexe à implémenter correctement pour gérer tous les cas de figure.
+
+La solution retenue avec `catch_unwind` permet de continuer à utiliser `pdf-extract` tout en gérant les cas d'erreur de manière robuste.
+
+### Suivi du problème
+
+Un problème a été ouvert sur le dépôt GitHub de la crate `pdf-extract` pour signaler ce problème. Veuillez remplacer [NUMÉRO_DU_PROBLÈME] par le numéro réel une fois que l'issue est créée.
+
+### Avantages de la solution
+
+1. **Robustesse** : Le système ne plante plus lorsqu'un PDF problématique est traité
+2. **Continuité du traitement** : Les autres documents peuvent continuer à être traités même si un PDF pose problème
+3. **Simplicité** : La solution est simple à implémenter et n'affecte pas les fonctionnalités existantes
+4. **Surveillance** : Les incidents sont journalisés, ce qui permet de mieux comprendre les fichiers problématiques
+
+### Limitations
+
+1. **Perte de contenu** : Lorsqu'un PDF provoque une panique, son contenu n'est pas indexé (une chaîne vide est retournée à la place)
+2. **Dépendance à la crate originale** : Nous continuons à utiliser la crate qui présente le bogue, mais avec une protection contre les conséquences

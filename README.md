@@ -54,6 +54,12 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
         ```
 *   **LLM Distant :** Accès à une instance Qwen3-Coder (ou similaire) via une API compatible OpenAI, accessible via votre reverse-proxy.
 
+## Problème connu avec les fichiers PDF volumineux
+
+Le projet utilise la crate `pdf-extract` pour lire les fichiers PDF. Cette crate peut provoquer une panique lors du traitement de fichiers PDF très volumineux (par exemple, 3500 pages) ou ayant une structure particulière. Pour gérer ce problème, nous avons implémenté une solution qui intercepte ces paniques et permet au processus de continuer. Un problème a été ouvert sur le dépôt GitHub de la crate `pdf-extract` à ce sujet. Veuillez remplacer [NUMÉRO_DU_PROBLÈME] par le numéro réel une fois que l'issue est créée.
+
+Lorsque cette situation se produit, le contenu du PDF n'est pas indexé (une chaîne vide est retournée à la place), mais le processus d'indexation continue pour les autres fichiers.
+
 ## Stack Technique
 
 *   **Langage :** [Rust](https://www.rust-lang.org/)
