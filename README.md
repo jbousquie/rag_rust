@@ -1,3 +1,9 @@
+# Demo
+QwenCLI interroge une instance locale de Qwen3-Coder à propos de Zorglub
+![QwenCLI Zorglub direct](img/zorglub_direct.png)
+QwenCLI interroge le même Qwen3-Coder local en passant par le proxy RAG dans lequel on a chargé le fichier PDF de la page Wikipédia de Zorglub
+![QwenCLI Zorglub proxy](img/zorglub_proxy.png)
+
 # Proxy RAG Rust
 
 Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple en **Rust**. Son objectif est de servir d'intermédiaire entre un client (comme un CLI ou un agent IA comme Zed) et un LLM distant (dans votre cas, une instance Qwen3-Coder derrière un reverse-proxy OpenAI API). Le proxy récupère des informations pertinentes à partir d'une base de connaissances vectorielle locale avant d'envoyer la requête enrichie au LLM distant, améliorant ainsi la pertinence des réponses.
