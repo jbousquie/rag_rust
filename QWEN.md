@@ -284,15 +284,39 @@ Lorsque le proxy RAG reçoit des requêtes de clients comme QwenCLI, il doit gé
 
 ### Solution actuelle
 
-La solution actuelle utilise `serde_json::Value` pour parser et modifier uniquement le contenu du message système, ce qui est plus robuste que les manipulations de chaînes de caractères. Cette approche :
+La solution actuelle utilise une approche hybride qui combine les avantages du mode "passthrough" avec les fonctionnalités RAG. Cette approche :
 
-1. **Préserve la structure JSON** : L'approche utilise `serde_json::Value` pour parser le JSON et modifier uniquement le champ de contenu du message système, préservant ainsi l'intégrité de la structure JSON originale
-2. **Gère les caractères de contrôle** : En évitant les manipulations de chaînes de caractères, cette approche résout les problèmes de parsing avec les caractères de contrôle qui perturbaient QwenCLI
-3. **Maintient la compatibilité** : La structure JSON est préservée exactement comme envoyée par le client, ce qui garantit la compatibilité avec tous les clients
+1. **Préserve la structure originale** : Le code extrait le texte original du message système, enrichit ce texte avec le contexte RAG, et remplace directement ce contenu dans le corps JSON sans reconstruction de la structure globale
+2. **Évite les modifications structurelles** : En manipulant directement la chaîne de caractères JSON, cette approche préserve exactement la structure envoyée par le client
+3. **Maintient la compatibilité** : La structure JSON est préservée exactement comme envoyée par le client, ce qui garantit la compatibilité avec QwenCLI et d'autres clients sensibles à la structure
 
 ### Problèmes identifiés
 
-Le problème identifié avec QwenCLI est que les manipulations de chaînes de caractères pouvaient introduire des caractères de contrôle ou des échappements inattendus qui perturbaient le parsing. La solution actuelle avec `serde_json::Value` résout ce problème en utilisant un parsing structuré qui ne modifie que les parties spécifiques nécessaires.
+Le problème identifié avec QwenCLI est que les manipulations de structures JSON avec `serde_json::Value` pouvaient introduire des modifications subtiles dans la structure ou des caractères d'échappement qui perturbaient le parsing de QwenCLI. La nouvelle approche résout ce problème en manipulant directement la chaîne JSON brute.
+
+### Nouvelle approche mise en œuvre
+
+Pour résoudre le problème de compatibilité avec QwenCLI, nous avons implémenté une nouvelle approche dans le handler RAG :
+
+1. **Extraction du texte original** : Le texte original du message système est extrait du corps JSON de la requête
+2. **Enrichissement avec le contexte RAG** : Le contexte récupéré via la recherche RAG est concaténé au texte original
+3. **Remplacement direct dans le body JSON** : Le texte original est remplacé par le texte enrichi dans le corps JSON sans reconstruction de la structure globale
+4. **Envoi direct de la requête modifiée au LLM** : Le corps de requête modifié est envoyé directement au LLM sans transformation en structure Rust
+5. **Faire suivre directement la réponse du LLM** : La réponse du LLM est relayée directement au client sans reconstruction de la structure de réponse
+6. **Échappement correct pour JSON** : Les chunks RAG sont correctement échappés pour le format JSON avant d'être intégrés
+
+### Avantages de cette approche
+
+1. **Meilleure compatibilité** : Puisque la structure JSON originale est préservée, cette approche est compatible avec des clients comme QwenCLI qui sont sensibles à la structure exacte des requêtes
+2. **Moins de modification de la structure** : Seul le contenu du message système est modifié, la structure globale restant inchangée
+3. **Flexibilité** : Cette approche fonctionne même si le client envoie des structures JSON non prévues dans le schéma de données
+4. **Approche "passthrough" pour la structure** : Similaire au mode passthrough mais avec ajout du contexte RAG dans le message système
+5. **Réduction des transformations** : En évitant la reconstruction de la structure de requête et de réponse, nous réduisons les risques d'altération de la structure originale
+6. **Meilleure fidélité de la réponse** : Le client reçoit la réponse exacte du LLM sans modifications potentielles introduites par la reconstruction de la structure
+
+### Mise à jour : Transmission directe des réponses LLM
+
+Nous avons apporté une amélioration supplémentaire en transmettant directement la réponse du LLM au client sans reconstruction de la structure de réponse. Cette approche assure une compatibilité maximale avec des clients comme QwenCLI qui s'attendent à recevoir exactement la même structure de réponse que celle fournie par le LLM directement.
 
 ### Recommandations pour l'avenir
 

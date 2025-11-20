@@ -30,7 +30,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   **Amélioration :** Ajout des headers HTTP appropriés pour une meilleure compatibilité avec QwenCLI
     *   **Mode de débogage :** Ajout d'un mode `--passthrough` pour le proxy qui fait simplement du relais sans traitement RAG
     *   **Amélioration :** Le proxy RAG préserve maintenant exactement la structure originale des requêtes, en étendant uniquement le message système existant avec le contexte RAG (comportement de type 'passthrough' pour la structure des requêtes)
-    *   **Compatibilité QwenCLI :** Correction du problème de compatibilité avec QwenCLI en utilisant une approche robuste de gestion des structures JSON qui préserve l'intégrité des requêtes entrantes
+    *   **Compatibilité QwenCLI :** Correction du problème de compatibilité avec QwenCLI en utilisant une approche hybride : extraction du texte original du message système, enrichissement avec le contexte RAG, remplacement direct dans le body JSON sans reconstruction de la structure globale, envoi direct de la requête modifiée au LLM sans transformation en structure Rust, et réponse du LLM relayée directement au client sans reconstruction de la structure de réponse, combinant ainsi les avantages du mode 'passthrough' avec les fonctionnalités RAG
 
 ## Prérequis
 
