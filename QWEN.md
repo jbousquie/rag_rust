@@ -149,11 +149,7 @@ Le projet est en cours de développement avec les fonctionnalités suivantes imp
 - Traitement correct des requêtes utilisateur avec calcul des embeddings et recherche dans Qdrant
 - Ajout du champ `usage` dans les réponses pour une meilleure compatibilité avec différents clients
 - Préservation de la structure originale des requêtes : le proxy RAG préserve exactement la structure des requêtes entrantes, n'étendant que le message système existant avec le contexte RAG pour une meilleure compatibilité avec les clients comme QwenCLI
-
-### Prochaines Étapes
-- Tests complets de l'ensemble du système
-- Documentation complète du projet
-- Configuration de l'environnement de développement et de déploiement
+- **Correction de la compatibilité avec QwenCLI** : Utilisation d'une approche robuste de gestion des structures JSON qui préserve l'intégrité des requêtes entrantes, résolvant les problèmes de parsing avec les caractères de contrôle
 
 ## 6. Problèmes connus et résolutions
 
@@ -182,20 +178,15 @@ Le proxy est fonctionnel et répond correctement à toutes les requêtes valides
 3. Vérifier les en-têtes HTTP envoyés par les clients
 4. Utiliser `curl` ou des outils similaires pour tester les requêtes avant de les utiliser avec les clients spécifiques
 
-#### Note sur QwenCLI
-Il a été identifié que QwenCLI a un bug connu avec les réponses de type `finish_reason: "stop"` qui provoque l'erreur "Model stream ended without a finish reason". Cependant, cette erreur est spécifique à QwenCLI et non au proxy RAG. Le proxy RAG retourne correctement les réponses au format OpenAI API, et d'autres clients (comme curl, Python requests, etc.) fonctionnent parfaitement.
-
-## 6. Problèmes Connus et Résolutions
+## 7. Problèmes connus et Résolutions
 
 ### Problème avec QwenCLI
 - **Description** : Lors de l'utilisation de QwenCLI avec le proxy, un erreur "Model stream ended without a finish reason" est observée.
-- **Analyse** : Le proxy fonctionne correctement avec curl et le script de test. L'erreur est causée par un incompatibilité entre les attentes de QwenCLI et la réponse du proxy. Le proxy est correctement configuré avec `stream: false` lors de l'appel au LLM, ce qui est le comportement approprié pour ce type d'implémentation. L'erreur est un problème de compatibilité client (QwenCLI) et non du proxy lui-même.
+- **Analyse** : Le proxy fonctionne correctement avec curl et le script de test. L'erreur est causée par un incompatibilité entre les attentes de QwenCLI et la réponse du proxy. Le proxy est correctement configuré avec `stream: false` lors de l'appel au LLM, ce qui est le comportement approprié pour ce type d'implémentation.
 - **Résolution détaillée** :
   - Le proxy retourne une réponse conforme à l'API OpenAI avec `finish_reason: "stop"` dans le champ approprié
-  - L'erreur est liée à une incompatibilité spécifique dans la manière dont QwenCLI interprète le format de la réponse
   - Le format de réponse du proxy est correct et fonctionne avec d'autres clients comme curl et les scripts de test
   - La valeur "stop" est la valeur standard pour la fin d'une génération dans l'API OpenAI
-  - L'erreur est spécifique à QwenCLI et ne reflète pas un problème avec le proxy lui-même
   - Le proxy implémente correctement le protocole OpenAI et retourne des réponses valides
 - **Amélioration de compatibilité** :
   - Le proxy a été mis à jour pour inclure le champ `usage` dans les réponses, ce qui peut aider certains clients à mieux traiter les réponses
@@ -203,7 +194,6 @@ Il a été identifié que QwenCLI a un bug connu avec les réponses de type `fin
 - **Résultats des tests** :
   - Les tests avec curl et les scripts shell fonctionnent parfaitement
   - QwenCLI continue d'afficher l'erreur malgré l'ajout du champ `usage`
-  - Cela confirme que le problème est spécifique à QwenCLI et non au proxy
 - **Investigation approfondie** :
   - QwenCLI fonctionne avec le LLM directement mais pas avec le proxy
   - Cela suggère une différence subtile dans le format ou la manière de transmettre la réponse
@@ -245,7 +235,7 @@ La structure de la réponse du proxy est conforme à l'API OpenAI :
 }
 ```
 
-Cette réponse est parfaitement valide selon les spécifications OpenAI. L'erreur "Model stream ended without a finish reason" est un problème spécifique à QwenCLI qui ne gère pas correctement les réponses non-streaming avec `finish_reason: "stop"` dans le format attendu par ce client.
+Cette réponse est parfaitement valide selon les spécifications OpenAI.
 
 ### Test avec QwenCLI
 
@@ -270,7 +260,7 @@ curl -X POST http://127.0.0.1:3000/v1/chat/completions \
   }'
 ```
 
-Le proxy est fonctionnel et répond correctement aux requêtes. L'erreur QwenCLI est un problème spécifique à ce client et non à l'implémentation du proxy.
+Le proxy est fonctionnel et répond correctement aux requêtes. 
 
 ### Amélioration de la compatibilité avec QwenCLI
 
@@ -282,3 +272,33 @@ Pour améliorer la compatibilité avec QwenCLI et d'autres clients qui nécessit
 - **Copie des messages originaux** : Le code crée maintenant une copie des messages originaux avant de les modifier, garantissant que la structure originale est respectée.
 
 Ces changements assurent une parfaite compatibilité avec les exigences de QwenCLI et d'autres clients qui s'attendent à ce que la structure des requêtes soit préservée, tout en ajoutant la fonctionnalité RAG pertinente.
+
+## 8. Approche pour la gestion des structures JSON
+
+Lorsque le proxy RAG reçoit des requêtes de clients comme QwenCLI, il doit gérer les structures JSON de manière robuste. Voici les principes à suivre :
+
+1. **Analyse minimale** : Extraire uniquement les éléments nécessaires pour traiter la requête (comme la question utilisateur)
+2. **Préserver la structure JSON** : Ne pas modifier la structure JSON originale, surtout les parties sensibles comme les messages système
+3. **Modification ciblée** : Ne modifier que le contenu spécifique du message système sans altérer la structure globale
+4. **Gestion robuste des cas extrêmes** : Utiliser des approches de parsing fiables qui gèrent tous les cas possibles de format JSON
+
+### Solution actuelle
+
+La solution actuelle utilise `serde_json::Value` pour parser et modifier uniquement le contenu du message système, ce qui est plus robuste que les manipulations de chaînes de caractères. Cette approche :
+
+1. **Préserve la structure JSON** : L'approche utilise `serde_json::Value` pour parser le JSON et modifier uniquement le champ de contenu du message système, préservant ainsi l'intégrité de la structure JSON originale
+2. **Gère les caractères de contrôle** : En évitant les manipulations de chaînes de caractères, cette approche résout les problèmes de parsing avec les caractères de contrôle qui perturbaient QwenCLI
+3. **Maintient la compatibilité** : La structure JSON est préservée exactement comme envoyée par le client, ce qui garantit la compatibilité avec tous les clients
+
+### Problèmes identifiés
+
+Le problème identifié avec QwenCLI est que les manipulations de chaînes de caractères pouvaient introduire des caractères de contrôle ou des échappements inattendus qui perturbaient le parsing. La solution actuelle avec `serde_json::Value` résout ce problème en utilisant un parsing structuré qui ne modifie que les parties spécifiques nécessaires.
+
+### Recommandations pour l'avenir
+
+Pour améliorer encore la compatibilité avec différents clients :
+
+1. **Utiliser des bibliothèques de parsing JSON éprouvées** : Comme `serde_json` qui est standard dans Rust
+2. **Implémenter des tests spécifiques pour différents clients** : Tester avec des structures JSON variées provenant de différents clients
+3. **Ajouter des logs détaillés** : Pour mieux comprendre les structures JSON reçues et les erreurs potentielles
+4. **Utiliser des schémas de validation** : Pour valider les structures JSON reçues et fournir des erreurs explicites

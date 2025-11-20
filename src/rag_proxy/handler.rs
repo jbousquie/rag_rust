@@ -112,41 +112,23 @@ pub struct Choice {
 /// # Returns
 /// * `impl IntoResponse` - The chat completion response in JSON format
 pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
-    // Debug: Print the raw request to understand the format
-    //println!("Raw request received: {:?}", std::str::from_utf8(&request));
+    // Convert bytes to string for JSON manipulation
+    let request_str = match std::str::from_utf8(&request) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Failed to parse request as UTF-8: {}", e);
+            return (StatusCode::BAD_REQUEST, "Failed to parse request").into_response();
+        }
+    };
 
     // Parse the request to access its contents
     let parsed_request: Result<ChatCompletionRequest, serde_json::Error> =
         serde_json::from_slice(&request);
 
-    match parsed_request {
+    let user_question = match parsed_request {
         Ok(req) => {
-            //println!("Successfully parsed request: {:?}", req);
-
-            // Check if there's already a system message in the incoming request
-            let existing_system_messages: Vec<&ChatMessage> = req
-                .messages
-                .iter()
-                .filter(|msg| msg.role == "system")
-                .collect();
-
-            if !existing_system_messages.is_empty() {
-                println!(
-                    "Found {} existing system message(s) in the request:",
-                    existing_system_messages.len()
-                );
-                /*
-                for (i, msg) in existing_system_messages.iter().enumerate() {
-                    println!("  System message {}: {:?}", i + 1, msg);
-                }
-                */
-            } else {
-                println!("No existing system messages found in the request");
-            }
-
             // Extract the user's question from the messages
-            let user_question = req
-                .messages
+            req.messages
                 .last() // Use the last message as the user question (most recent user input)
                 .or_else(|| req.messages.iter().find(|msg| msg.role == "user")) // Fallback to find any user message
                 .map(|msg| {
@@ -168,122 +150,134 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
                         }
                     }
                 })
-                .unwrap_or_else(|| "No question provided".to_string());
-
-            // Load configuration
-            let config = load_config();
-
-            // Retrieve relevant context from Qdrant
-            let context = match retrieve_context(&user_question, &config).await {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    eprintln!("Error retrieving context: {}", e);
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Failed to retrieve context",
-                    )
-                        .into_response();
-                }
-            };
-
-            // Create a new message vector based on the original but with extended system message
-            let mut modified_messages = req.messages.clone();
-
-            // Add context if available
-            if !context.is_empty() {
-                // Format the new context
-                let new_context = format!("--- Context from: RAG ---\n{}", context);
-
-                // Find and modify the first system message if one exists
-                let mut system_message_updated = false;
-                for msg in &mut modified_messages {
-                    if msg.role == "system" {
-                        if let MessageContent::Text(ref mut text) = msg.content {
-                            *text = format!("{}\n\n{}", text, new_context);
-                        } else if let MessageContent::Parts(ref mut parts) = msg.content {
-                            // For multimodal messages, convert to text and append
-                            let text_content = parts
-                                .iter()
-                                .filter_map(|part| {
-                                    if part.r#type == "text" {
-                                        part.text.clone()
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .join("\n");
-
-                            msg.content = MessageContent::Text(format!(
-                                "{}\n\n{}",
-                                text_content, new_context
-                            ));
-                        }
-                        system_message_updated = true;
-                        break; // Only update the first system message
-                    }
-                }
-
-                // If no system message existed, add a new one at the beginning
-                if !system_message_updated {
-                    let context_msg = ChatMessage {
-                        role: "system".to_string(),
-                        content: MessageContent::Text(new_context),
-                    };
-                    modified_messages.insert(0, context_msg);
-                }
-            };
-
-            // Call the LLM with the modified messages
-            let response_text =
-                match call_llm_with_messages(modified_messages, req.model, &config).await {
-                    Ok(resp) => resp,
-                    Err(e) => {
-                        eprintln!("Error calling LLM: {}", e);
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            "Failed to get response from LLM",
-                        )
-                            .into_response();
-                    }
-                };
-
-            // Create and return the response
-            let chat_response = ChatCompletionResponse {
-                id: "chatcmpl-123".to_string(),
-                object: "chat.completion".to_string(),
-                created: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs(),
-                model: config.llm.model.clone(),
-                choices: vec![Choice {
-                    index: 0,
-                    message: ChatMessage {
-                        role: "assistant".to_string(),
-                        content: MessageContent::Text(response_text),
-                    },
-                    finish_reason: Some("stop".to_string()),
-                }],
-                usage: Some(Usage {
-                    prompt_tokens: 0,     // Placeholder - actual token count would require a tokenizer
-                    completion_tokens: 0, // Placeholder - actual token count would require a tokenizer
-                    total_tokens: 0, // Placeholder - actual token count would require a tokenizer
-                }),
-            };
-            //println!("{:?}", chat_response);
-
-            // Create response with proper headers
-            let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", HeaderValue::from_static("application/json"));
-
-            // Return the response as JSON with headers
-            (headers, Json(chat_response)).into_response()
+                .unwrap_or_else(|| "No question provided".to_string())
         }
         Err(e) => {
             eprintln!("Failed to parse request: {}", e);
             eprintln!("Raw request content: {:?}", std::str::from_utf8(&request));
-            (StatusCode::BAD_REQUEST, "Failed to parse request").into_response()
+            return (StatusCode::BAD_REQUEST, "Failed to parse request").into_response();
         }
-    }
+    };
+
+    // Load configuration
+    let config = load_config();
+
+    // Retrieve relevant context from Qdrant
+    let context = match retrieve_context(&user_question, &config).await {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            eprintln!("Error retrieving context: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to retrieve context",
+            )
+                .into_response();
+        }
+    };
+
+    // If we have context, modify the request to include it
+    let modified_request_str = if !context.is_empty() {
+        // Format the new context
+        let new_context = format!("--- Context from: RAG ---\n{}", context);
+
+        // Create a copy of the original request string to preserve structure
+        // This approach ensures we maintain the exact JSON structure while only modifying
+        // the system message content
+        let mut request_json: serde_json::Value = serde_json::from_str(request_str)
+            .expect("Failed to parse original request JSON");
+
+        // Find and modify the system message content
+        if let Some(messages) = request_json.get_mut("messages") {
+            if let Some(messages_array) = messages.as_array_mut() {
+                // Look for the last system message to modify
+                let system_message_index = messages_array
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .find(|(_, msg)| {
+                        msg.get("role").and_then(|r| r.as_str()) == Some("system")
+                    })
+                    .map(|(i, _)| i);
+
+                if let Some(index) = system_message_index {
+                    // Modify the existing system message content
+                    if let Some(content) = messages_array[index].get_mut("content") {
+                        *content = serde_json::Value::String(new_context);
+                    }
+                } else {
+                    // Add a new system message at the end
+                    let system_message = serde_json::json!({
+                        "role": "system",
+                        "content": new_context
+                    });
+                    messages_array.push(system_message);
+                }
+            }
+        }
+
+        // Serialize back to string
+        request_json.to_string()
+    } else {
+        request_str.to_string()
+    };
+
+    // Parse the modified JSON back to a ChatCompletionRequest
+    let modified_request: Result<ChatCompletionRequest, serde_json::Error> =
+        serde_json::from_str(&modified_request_str);
+
+    let response_text = match modified_request {
+        Ok(req) => {
+            // Call the LLM with the modified messages
+            match call_llm_with_messages(req.messages, req.model, &config).await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    eprintln!("Error calling LLM: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to get response from LLM",
+                    )
+                        .into_response();
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to parse modified request: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to parse modified request",
+            )
+                .into_response();
+        }
+    };
+
+    // Create and return the response
+    let chat_response = ChatCompletionResponse {
+        id: "chatcmpl-123".to_string(),
+        object: "chat.completion".to_string(),
+        created: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        model: config.llm.model.clone(),
+        choices: vec![Choice {
+            index: 0,
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: MessageContent::Text(response_text),
+            },
+            finish_reason: Some("stop".to_string()),
+        }],
+        usage: Some(Usage {
+            prompt_tokens: 0,     // Placeholder - actual token count would require a tokenizer
+            completion_tokens: 0, // Placeholder - actual token count would require a tokenizer
+            total_tokens: 0, // Placeholder - actual token count would require a tokenizer
+        }),
+    };
+
+    // Create response with proper headers
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+
+    // Return the response as JSON with headers
+    (headers, Json(chat_response)).into_response()
 }
