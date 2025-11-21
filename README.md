@@ -21,7 +21,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   Suivi des fichiers indexés pour éviter le retraitement des fichiers non modifiés
 *   **Génération d'Embeddings Locaux :** Utilise une instance [Ollama](https://ollama.ai/) locale (modèle `Qwen3-Embeddings`) pour générer les embeddings nécessaires à l'indexation et à la recherche.
 *   **Recherche Vectorielle :** Effectue une recherche sémantique dans la base de connaissances vectorielle locale.
-*   **Appel LLM Distant :** Transmet la question d'origine enrichie du contexte récupéré à un LLM distant via une API compatible OpenAI.
+*   **Communication avec LLM Distant :** Le module `handler.rs` gère directement la communication avec le LLM distant via une API compatible OpenAI, en envoyant la requête enrichie avec le contexte RAG.
 *   **Séparation des Responsabilités :** Le code est organisé en deux composants principaux : un outil d'indexation et un serveur proxy.
 *   **Serveur HTTP Axum :** Le proxy RAG est implémenté avec un serveur HTTP Axum qui expose l'endpoint `/v1/chat/completions` configurable via `config.toml`.
 *   **Traitement des Requêtes Utilisateur :** Le handler pour les requêtes utilisateur :
@@ -37,6 +37,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   **Mode de débogage :** Ajout d'un mode `--passthrough` pour le proxy qui fait simplement du relais sans traitement RAG
     *   **Amélioration :** Le proxy RAG préserve maintenant exactement la structure originale des requêtes, en étendant uniquement le message système existant avec le contexte RAG (comportement de type 'passthrough' pour la structure des requêtes)
     *   **Compatibilité QwenCLI :** Correction du problème de compatibilité avec QwenCLI en utilisant une approche hybride : extraction du texte original du message système, enrichissement avec le contexte RAG, remplacement direct dans le body JSON sans reconstruction de la structure globale, envoi direct de la requête modifiée au LLM sans transformation en structure Rust, et réponse du LLM relayée directement au client sans reconstruction de la structure de réponse, combinant ainsi les avantages du mode 'passthrough' avec les fonctionnalités RAG
+    *   **Optimisation du message système :** Ajout d'une configuration optionnelle `system_message_fingerprint_length` pour optimiser le remplacement du message système dans les requêtes RAG. Cette option permet d'utiliser une empreinte (fingerprint) de N caractères pour cibler précisément le remplacement dans le corps JSON, ce qui est plus efficace pour les très longs messages système. La valeur par défaut est de 255 caractères.
 
 ## Prérequis
 
@@ -83,13 +84,15 @@ Lorsque cette situation se produit, le contenu du PDF n'est pas indexé (une cha
 │   │   ├── loader.rs   # Chargement des fichiers
 │   │   ├── chunker.rs  # Découpage du texte
 │   │   ├── indexer.rs  # Génération des embeddings (Ollama) + Stockage (Qdrant)
-│   │   └── file_tracker.rs # Suivi des fichiers indexés
+│   │   ├── file_tracker.rs # Suivi des fichiers indexés
+│   │   └── main.rs     # Point d'entrée du binaire d'indexation
 │   ├── rag_proxy/      # Logique du serveur proxy RAG
 │   │   ├── mod.rs
 │   │   ├── server.rs   # Démarrage du serveur axum
 │   │   ├── handler.rs  # Gestion d'une requête : Recherche RAG -> Appel LLM -> Réponse
 │   │   ├── retriever.rs # Recherche dans Qdrant
-│   │   └── llm_caller.rs # Appel au LLM distant
+│   │   ├── passthrough_handler.rs # Gestion des requêtes en mode 'passthrough' sans RAG
+│   │   └── main.rs     # Point d'entrée du binaire du proxy RAG
 ├── data_sources/       # Dossier source pour les documents à indexer
 ├── index_tracker.json  # Fichier de suivi des fichiers indexés
 └── ...
@@ -171,6 +174,23 @@ score_threshold = 0.7          # seuil de score pour les résultats de recherche
 
 Ces paramètres permettent de spécifier la taille des vecteurs et la distance de similarité utilisée dans la base de données vectorielle, ce qui correspond à la configuration de votre modèle d'embedding.
 
+### Paramètres du Proxy RAG
+
+```toml
+[rag_proxy]
+# Configuration du proxy RAG
+host = "localhost"
+port = 3000
+chat_completion_endpoint = "/v1/chat/completions"
+# Taille du "fingerprint" utilisé pour la mise à jour intelligente du message système
+# dans les requêtes RAG. Permet d'éviter de remplacer accidentellement du contenu
+# similaire dans d'autres parties de la requête. Une valeur de 255 caractères
+# est généralement suffisante pour assurer l'unicité tout en restant efficace.
+system_message_fingerprint_length = 255
+```
+
+Ces paramètres permettent de configurer les aspects du serveur proxy RAG, y compris l'endpoint exposé et le comportement de remplacement du message système.
+
 ### Endpoint configurable
 
 L'endpoint `/v1/chat/completions` du proxy RAG est configurable via `config.toml` dans la section `[rag_proxy]` :
@@ -181,9 +201,14 @@ L'endpoint `/v1/chat/completions` du proxy RAG est configurable via `config.toml
 host = "localhost"
 port = 3000
 chat_completion_endpoint = "/v1/chat/completions"
+# Taille du "fingerprint" utilisé pour la mise à jour intelligente du message système
+# dans les requêtes RAG. Permet d'éviter de remplacer accidentellement du contenu
+# similaire dans d'autres parties de la requête. Une valeur de 255 caractères
+# est généralement suffisante pour assurer l'unicité tout en restant efficace.
+system_message_fingerprint_length = 255
 ```
 
-Cela permet de personnaliser l'endpoint exposé par le serveur proxy RAG.
+Cela permet de personnaliser l'endpoint exposé par le serveur proxy RAG ainsi que le comportement de remplacement du message système.
 
 ## Étapes Suivantes / Extensibilité
 
