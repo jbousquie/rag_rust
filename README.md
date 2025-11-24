@@ -40,6 +40,11 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   **Optimisation du message système :** Ajout d'une configuration optionnelle `system_message_fingerprint_length` pour optimiser le remplacement du message système dans les requêtes RAG. Cette option permet d'utiliser une empreinte (fingerprint) de N caractères pour cibler précisément le remplacement dans le corps JSON, ce qui est plus efficace pour les très longs messages système. La valeur par défaut est de 255 caractères.
 *   **Réinitialisation des données :** Possibilité de réinitialiser complètement la base de connaissances vectorielle avec la commande `cargo run --bin reset_documents`, qui supprime la collection Qdrant et réinitialise le fichier de suivi des fichiers indexés.
 *   **Gestion Robuste des Erreurs :** Le projet utilise une stratégie de gestion des erreurs centralisée via un type `AppError` personnalisé (basé sur `thiserror`). Toutes les paniques (`unwrap`, `expect`) ont été éliminées au profit d'une propagation propre des erreurs, garantissant que le serveur ne crashe pas en cas d'imprévu et retourne des codes d'erreur HTTP appropriés.
+*   **Logging Structuré :** Utilisation de `tracing` pour un logging professionnel avec niveaux de sévérité (info, warn, error) et timestamps, remplaçant les `println!` et `eprintln!`.
+*   **Architecture Modulaire :**
+    *   **Clients API Centralisés :** Les appels HTTP vers Ollama et le LLM sont encapsulés dans des modules dédiés (`OllamaClient`, `LlmClient`) pour éviter la duplication de code.
+    *   **Chargement de Fichiers Trait-based :** Architecture extensible basée sur le trait `DocumentLoader` avec des implémentations spécifiques (`TextLoader`, `PdfLoader`, `DocxLoader`) facilitant l'ajout de nouveaux formats.
+    *   **Injection de Dépendances :** La configuration est chargée une fois au démarrage et partagée via `State<Arc<Config>>` dans les handlers Axum.
 
 ## Prérequis
 
@@ -79,11 +84,15 @@ Lorsque cette situation se produit, le contenu du PDF n'est pas indexé (une cha
 .
 ├── Cargo.toml          # Dépendances et définition des binaires
 ├── src/
-│   ├── lib.rs          # Fonctions utilitaires partagées
+│   ├── lib.rs          # Fonctions utilitaires partagées et type AppError
 │   ├── qdrant_custom_client.rs  # Client personnalisé pour Qdrant
+│   ├── clients/        # Clients API centralisés
+│   │   ├── mod.rs
+│   │   ├── ollama.rs   # Client pour Ollama (génération d'embeddings)
+│   │   └── llm.rs      # Client pour le LLM distant
 │   ├── indexing/       # Logique d'indexation
 │   │   ├── mod.rs
-│   │   ├── loader.rs   # Chargement des fichiers
+│   │   ├── loader.rs   # Chargement des fichiers (trait-based)
 │   │   ├── chunker.rs  # Découpage du texte
 │   │   ├── indexer.rs  # Génération des embeddings (Ollama) + Stockage (Qdrant)
 │   │   ├── file_tracker.rs # Suivi des fichiers indexés

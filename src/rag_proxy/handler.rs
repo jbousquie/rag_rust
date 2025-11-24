@@ -8,12 +8,15 @@
 use axum::{
     body::Bytes,
     response::IntoResponse,
+    extract::State,
 };
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
-use crate::load_config;
+use crate::Config;
 use crate::AppError;
 use crate::rag_proxy::retriever::retrieve_context;
+use crate::clients::llm::LlmClient;
 
 /// Chat completion request structure
 /// This matches the OpenAI API format for chat completions
@@ -75,7 +78,10 @@ pub struct ChatMessage {
 ///
 /// # Returns
 /// * `Result<impl IntoResponse, AppError>` - The response from the LLM service
-pub async fn handle_rag_request(request: Bytes) -> Result<impl IntoResponse, AppError> {
+pub async fn handle_rag_request(
+    State(config): State<Arc<Config>>,
+    request: Bytes
+) -> Result<impl IntoResponse, AppError> {
     // Convert bytes to string for JSON manipulation
     // Convert bytes to string for JSON manipulation
     let request_str = std::str::from_utf8(&request).map_err(|e| {
@@ -113,8 +119,7 @@ pub async fn handle_rag_request(request: Bytes) -> Result<impl IntoResponse, App
             .unwrap_or_else(|| "No question provided".to_string())
     };
 
-    // Load configuration
-    let config = load_config()?;
+    // Configuration is now injected via State
 
     // Retrieve relevant context from Qdrant
     // Retrieve relevant context from Qdrant
@@ -239,24 +244,12 @@ pub async fn handle_rag_request(request: Bytes) -> Result<impl IntoResponse, App
         request_str.to_string()
     };
 
-    // Create HTTP client
-    let client = reqwest::Client::new();
+    // Create LLM client
+    let llm_client = LlmClient::new(&config);
 
     // Send the modified request directly to the LLM endpoint
-    // Send the modified request directly to the LLM endpoint
-    let llm_response = client
-        .post(&config.llm.endpoint)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", config.llm.api_key))
-        .body(modified_request_str)
-        .send()
-        .await
-        .map_err(|e| {
-            eprintln!("Error calling LLM: {}", e);
-            AppError::Reqwest(e)
-        })?;
+    let llm_response = llm_client.send_request(modified_request_str).await?;
 
-    // Get the response body from the LLM
     // Get the response body from the LLM
     let llm_response_body = llm_response.text().await.map_err(|e| {
         eprintln!("Error reading LLM response body: {}", e);

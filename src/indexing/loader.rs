@@ -17,6 +17,89 @@ use crate::Config;
 use crate::AppError;
 use pdf_extract::extract_text;
 use docx_rust::DocxFile;
+use tracing::warn;
+
+/// Trait for loading document content from different file types
+pub trait DocumentLoader {
+    /// Loads the document content
+    ///
+    /// # Returns
+    /// * `Result<String, AppError>` - Document content if successful, error otherwise
+    fn load(&self, path: &Path) -> Result<String, AppError>;
+}
+
+/// Loader for plain text files
+pub struct TextLoader;
+
+impl DocumentLoader for TextLoader {
+    fn load(&self, path: &Path) -> Result<String, AppError> {
+        fs::read_to_string(path).map_err(AppError::Io)
+    }
+}
+
+/// Loader for PDF files
+pub struct PdfLoader;
+
+impl DocumentLoader for PdfLoader {
+    fn load(&self, path: &Path) -> Result<String, AppError> {
+        // Use catch_unwind to prevent panics from pdf-extract
+        let result = std::panic::catch_unwind(|| {
+            extract_text(path)
+        });
+
+        match result {
+            Ok(Ok(content)) => Ok(content),
+            Ok(Err(e)) => {
+                warn!("Failed to extract PDF content: {}", e);
+                Err(AppError::Pdf(format!("PDF extraction failed: {}", e)))
+            }
+            Err(_) => {
+                warn!("PDF extraction panicked");
+                Err(AppError::Pdf("PDF extraction panicked".to_string()))
+            }
+        }
+    }
+}
+
+/// Loader for DOCX files
+pub struct DocxLoader;
+
+impl DocumentLoader for DocxLoader {
+    fn load(&self, path: &Path) -> Result<String, AppError> {
+        let docx = DocxFile::from_file(path)
+            .map_err(|e| AppError::Docx(format!("Failed to open DOCX file: {}", e)))?;
+
+        let docx = docx.parse()
+            .map_err(|e| AppError::Docx(format!("Failed to parse DOCX file: {}", e)))?;
+
+        let mut content = String::new();
+        for paragraph in docx.document.body.content {
+            if let docx_rust::document::BodyContent::Paragraph(p) = paragraph {
+                for run in p.content {
+                    if let docx_rust::document::ParagraphContent::Run(r) = run {
+                        for text in r.content {
+                            if let docx_rust::document::RunContent::Text(t) = text {
+                                content.push_str(&t.text);
+                            }
+                        }
+                    }
+                }
+                content.push('\n');
+            }
+        }
+
+        Ok(content)
+    }
+}
+
+/// Returns the appropriate loader for a given file extension
+fn get_loader(extension: &str) -> Box<dyn DocumentLoader> {
+    match extension {
+        "pdf" => Box::new(PdfLoader),
+        "docx" => Box::new(DocxLoader),
+        _ => Box::new(TextLoader),
+    }
+}
 
 /// Asynchronously loads file content from disk
 ///
@@ -29,34 +112,20 @@ use docx_rust::DocxFile;
 pub async fn load_file(config: &Config, filename: &str) -> Result<String, AppError> {
     let file_path = Path::new(&config.data_sources.path).join(filename);
 
-    // Check file extension to determine loading method
-    match file_path.extension().and_then(|ext| ext.to_str()) {
-        Some("pdf") => {
-            // Load PDF content using pdf-extract crate
-            match load_pdf_file(&file_path).await {
-                Ok(content) => Ok(content),
-                Err(e) => {
-                    eprintln!("Warning: Failed to read PDF file '{}': {}", filename, e);
-                    // Return empty string instead of panicking
-                    Ok(String::new())
-                }
-            }
-        }
-        Some("docx") => {
-            // Load DOCX content using docx-rust crate
-            match load_docx_file(&file_path).await {
-                Ok(content) => Ok(content),
-                Err(e) => {
-                    eprintln!("Warning: Failed to read DOCX file '{}': {}", filename, e);
-                    // Return empty string instead of panicking
-                    Ok(String::new())
-                }
-            }
-        }
-        _ => {
-            // Default to text file loading
-            let content = tokio::fs::read_to_string(&file_path).await.map_err(AppError::Io)?;
-            Ok(content)
+    // Get the appropriate loader based on file extension
+    let extension = file_path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+    
+    let loader = get_loader(extension);
+    
+    // Load the file content
+    match loader.load(&file_path) {
+        Ok(content) => Ok(content),
+        Err(e) => {
+            warn!("Failed to load file '{}': {}", filename, e);
+            // Return empty string for failed loads to allow processing to continue
+            Ok(String::new())
         }
     }
 }
@@ -72,212 +141,19 @@ pub async fn load_file(config: &Config, filename: &str) -> Result<String, AppErr
 pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, AppError> {
     let file_path = Path::new(&config.data_sources.path).join(filename);
 
-    // Check file extension to determine loading method
-    match file_path.extension().and_then(|ext| ext.to_str()) {
-        Some("pdf") => {
-            // Load PDF content using pdf-extract crate
-            match load_pdf_file_sync(&file_path) {
-                Ok(content) => Ok(content),
-                Err(e) => {
-                    eprintln!("Warning: Failed to read PDF file '{}': {}", filename, e);
-                    // Return empty string instead of panicking
-                    Ok(String::new())
-                }
-            }
-        }
-        Some("docx") => {
-            // Load DOCX content using docx-rust crate
-            match load_docx_file_sync(&file_path) {
-                Ok(content) => Ok(content),
-                Err(e) => {
-                    eprintln!("Warning: Failed to read DOCX file '{}': {}", filename, e);
-                    // Return empty string instead of panicking
-                    Ok(String::new())
-                }
-            }
-        }
-        _ => {
-            // Default to text file loading
-            let content = fs::read_to_string(&file_path).map_err(AppError::Io)?;
-            Ok(content)
-        }
-    }
-}
-
-/// Asynchronously loads PDF file content using pdf-extract crate
-///
-/// # Arguments
-/// * `file_path` - Path to the PDF file
-///
-/// # Returns
-/// * `Result<String, AppError>` - PDF content if successful, error otherwise
-async fn load_pdf_file(file_path: &Path) -> Result<String, AppError> {
-    // Extract text from PDF using pdf-extract crate
-    // Use spawn_blocking since pdf-extract is synchronous
-    let path = file_path.to_path_buf();
-    match tokio::task::spawn_blocking({
-        let path = path.clone();
-        move || {
-            // Use std::panic::catch_unwind to catch any panics from pdf-extract
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                extract_text(&path)
-            }))
-        }
-    }).await {
-        Ok(Ok(Ok(text))) => Ok(text),
-        Ok(Ok(Err(e))) => {
-            eprintln!("Warning: Failed to extract text from PDF file '{:?}': {}", file_path, e);
-            // Return empty string instead of erroring
-            Ok(String::new())
-        },
-        Ok(Err(panic_err)) => {
-            eprintln!("Warning: PDF extraction panicked for file '{:?}': {:?}", file_path, panic_err);
-            // Return empty string instead of panicking
-            Ok(String::new())
-        },
-        Err(join_err) => {
-            eprintln!("Warning: Task join error for PDF file '{:?}': {:?}", file_path, join_err);
-            // Return empty string
-            Ok(String::new())
-        }
-    }
-}
-
-/// Asynchronously loads DOCX file content using docx-rust crate
-///
-/// # Arguments
-/// * `file_path` - Path to the DOCX file
-///
-/// # Returns
-/// * `Result<String, AppError>` - DOCX content if successful, error otherwise
-async fn load_docx_file(file_path: &Path) -> Result<String, AppError> {
-    // Extract text from DOCX using docx-rust crate
-    // Use spawn_blocking since docx-rust is synchronous
-    let path = file_path.to_path_buf();
-    let path_clone = path.clone();  // Clone path to use in error handling outside the closure
-    let result = tokio::task::spawn_blocking(move || -> Result<String, AppError> {
-        // Load DOCX file using docx-rust API and extract text
-        match DocxFile::from_file(&path) {
-            Ok(docx_file) => {
-                match docx_file.parse() {
-                    Ok(docx) => {
-                        // Build the content string by extracting text from paragraphs
-                        let mut content = String::new();
-
-                        // Access the content of the body
-                        for content_child in &docx.document.body.content {
-                            if let docx_rust::document::BodyContent::Paragraph(p) = content_child {
-                                let mut paragraph_content = String::new();
-                                for run_child in &p.content {
-                                    if let docx_rust::document::ParagraphContent::Run(run) = run_child {
-                                        // Access the text property - it's likely a direct field or method
-                                        let run_text = run.text();
-                                        paragraph_content.push_str(&run_text);
-                                    }
-                                }
-                                content.push_str(&paragraph_content);
-                                content.push('\n');
-                            }
-                        }
-
-                        Ok(content)
-                    }
-                    Err(e) => {
-                        eprintln!("Warning: Failed to parse DOCX file '{:?}': {:?}", path, e);
-                        // Return empty string instead of erroring to allow processing to continue
-                        Ok(String::new())
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("Warning: Failed to load DOCX file '{:?}': {:?}", path, e);
-                Ok(String::new())
-            }
-        }
-    })
-    .await;
-
-    match result {
-        Ok(content_result) => content_result,
-        Err(join_err) => {
-            eprintln!("Warning: Task join error for DOCX file '{:?}': {:?}", path_clone, join_err);
-            Err(AppError::Docx(format!("Join error: {:?}", join_err)))
-        }
-    }
-}
-
-/// Synchronously loads PDF file content using pdf-extract crate
-///
-/// # Arguments
-/// * `file_path` - Path to the PDF file
-///
-/// # Returns
-/// * `Result<String, AppError>` - PDF content if successful, error otherwise
-fn load_pdf_file_sync(file_path: &Path) -> Result<String, AppError> {
-    // Extract text from PDF using pdf-extract crate
-    // Use std::panic::catch_unwind to catch any panics from pdf-extract
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        extract_text(file_path)
-    }));
-
-    match result {
-        Ok(Ok(text)) => Ok(text),
-        Ok(Err(e)) => {
-            eprintln!("Warning: Failed to extract text from PDF file '{:?}': {}", file_path, e);
-            // Return empty string instead of erroring
-            Ok(String::new())
-        },
-        Err(panic_err) => {
-            eprintln!("Warning: PDF extraction panicked for file '{:?}': {:?}", file_path, panic_err);
-            // Return empty string instead of panicking
-            Ok(String::new())
-        }
-    }
-}
-
-/// Synchronously loads DOCX file content using docx-rust crate
-///
-/// # Arguments
-/// * `file_path` - Path to the DOCX file
-///
-/// # Returns
-/// * `Result<String, AppError>` - DOCX content if successful, error otherwise
-fn load_docx_file_sync(file_path: &Path) -> Result<String, AppError> {
-    // Load DOCX file using docx-rust API and extract text
-    match DocxFile::from_file(file_path) {
-        Ok(docx_file) => {
-            match docx_file.parse() {
-                Ok(docx) => {
-                    // Build the content string by extracting text from paragraphs
-                    let mut content = String::new();
-
-                    // Access the content of the body
-                    for content_child in &docx.document.body.content {
-                        if let docx_rust::document::BodyContent::Paragraph(p) = content_child {
-                            let mut paragraph_content = String::new();
-                            for run_child in &p.content {
-                                if let docx_rust::document::ParagraphContent::Run(run) = run_child {
-                                    // Access the text property - it's likely a direct field or method
-                                    let run_text = run.text();
-                                    paragraph_content.push_str(&run_text);
-                                }
-                            }
-                            content.push_str(&paragraph_content);
-                            content.push('\n');
-                        }
-                    }
-
-                    Ok(content)
-                }
-                Err(e) => {
-                    eprintln!("Warning: Failed to parse DOCX file '{:?}': {:?}", file_path, e);
-                    // Return empty string instead of erroring to allow processing to continue
-                    Ok(String::new())
-                }
-            }
-        }
+    // Get the appropriate loader based on file extension
+    let extension = file_path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+    
+    let loader = get_loader(extension);
+    
+    // Load the file content
+    match loader.load(&file_path) {
+        Ok(content) => Ok(content),
         Err(e) => {
-            eprintln!("Warning: Failed to load DOCX file '{:?}': {:?}", file_path, e);
+            warn!("Failed to load file '{}': {}", filename, e);
+            // Return empty string for failed loads to allow processing to continue
             Ok(String::new())
         }
     }

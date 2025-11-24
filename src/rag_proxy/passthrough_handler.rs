@@ -4,12 +4,13 @@
 //! in passthrough mode, where requests are forwarded directly to the LLM
 //! without any RAG processing.
 
-use axum::{Json, body::Bytes, http::HeaderValue, response::IntoResponse};
+use axum::{Json, body::Bytes, http::HeaderValue, response::IntoResponse, extract::State};
 use serde::{Deserialize, Serialize};
-use reqwest;
+use std::sync::Arc;
 
-use crate::load_config;
+use crate::Config;
 use crate::AppError;
+use crate::clients::llm::LlmClient;
 
 /// Chat completion request structure
 /// This matches the OpenAI API format for chat completions
@@ -61,26 +62,17 @@ pub struct ChatMessage {
 ///
 /// # Returns
 /// * `Result<impl IntoResponse, AppError>` - The response from the LLM service
-pub async fn handle_passthrough_request(request: Bytes) -> Result<impl IntoResponse, AppError> {
-    // Load configuration
-    let config = load_config()?;
+pub async fn handle_passthrough_request(
+    State(config): State<Arc<Config>>,
+    request: Bytes
+) -> Result<impl IntoResponse, AppError> {
+    // Configuration is now injected via State
 
-    // Create HTTP client
-    let client = reqwest::Client::new();
+    // Create LLM client
+    let llm_client = LlmClient::new(&config);
 
     // Forward the request to the LLM endpoint
-    // Forward the request to the LLM endpoint
-    let response = client
-        .post(&config.llm.endpoint)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", config.llm.api_key))
-        .body(request.to_vec())
-        .send()
-        .await
-        .map_err(|e| {
-            eprintln!("Error forwarding request to LLM: {}", e);
-            AppError::Reqwest(e)
-        })?;
+    let response = llm_client.forward_request(request).await?;
 
     // Get the response body
     let body = response.text().await.map_err(|e| {

@@ -28,8 +28,14 @@ struct IndexingConfig {
     file_tracker_path: String,
 }
 
+use rag_rust::init_logging;
+use tracing::{info, error};
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logging
+    init_logging();
+
     // Read configuration from config.toml
     let config_content = fs::read_to_string("config.toml")?;
     let config: Config = toml::from_str(&config_content)?;
@@ -46,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Delete the Qdrant collection
-    println!(
+    info!(
         "Deleting Qdrant collection: {}",
         config.qdrant_config.collection
     );
@@ -56,35 +62,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         Ok(success) => {
             if success {
-                println!(
+                info!(
                     "Successfully deleted collection: {}",
                     config.qdrant_config.collection
                 );
             } else {
-                eprintln!(
+                error!(
                     "Failed to delete collection: {}",
                     config.qdrant_config.collection
                 );
             }
         }
         Err(e) => {
-            eprintln!("Error deleting collection: {}", e);
+            error!("Error deleting collection: {}", e);
         }
     }
 
     // Delete the content of the tracker file
     let tracker_path = Path::new(&config.indexing_config.file_tracker_path);
     if tracker_path.exists() {
-        println!("Clearing tracker file: {:?}", tracker_path);
+        info!("Clearing tracker file: {:?}", tracker_path);
         fs::write(tracker_path, "{}")?;
-        println!("Successfully cleared tracker file: {:?}", tracker_path);
+        info!("Successfully cleared tracker file: {:?}", tracker_path);
     } else {
-        println!(
+        info!(
             "Tracker file does not exist, creating empty one: {:?}",
             tracker_path
         );
         fs::write(tracker_path, "{}")?;
-        println!(
+        info!(
             "Successfully created empty tracker file: {:?}",
             tracker_path
         );

@@ -5,6 +5,17 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use tracing_subscriber::FmtSubscriber;
+
+/// Initializes the logging system
+pub fn init_logging() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(tracing::Level::INFO)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -138,3 +149,4 @@ pub fn load_config() -> Result<Config, AppError> {
 pub mod indexing;
 pub mod qdrant_custom_client;
 pub mod rag_proxy;
+pub mod clients;

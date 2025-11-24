@@ -7,21 +7,7 @@
 use crate::Config;
 use crate::AppError;
 use crate::qdrant_custom_client::QdrantClient;
-use reqwest;
-use serde::{Deserialize, Serialize};
-use serde_json;
-
-#[derive(Debug, Serialize)]
-struct EmbeddingRequest {
-    model: String,
-    prompt: String,
-}
-
-// The response structure from Ollama's embeddings API
-#[derive(Deserialize)]
-struct OllamaEmbeddingResponse {
-    embedding: Vec<f32>,
-}
+use crate::clients::ollama::OllamaClient;
 
 /// Retrieves relevant context from Qdrant based on the user's question
 ///
@@ -42,43 +28,14 @@ pub async fn retrieve_context(
     question: &str,
     config: &Config,
 ) -> Result<String, AppError> {
-    // Create an embedding for the question using Ollama
-    let ollama_endpoint = format!("{}/api/embeddings", config.embeddings.endpoint);
-    let model_name = config.embeddings.model.clone();
+    // Create Ollama client
+    let ollama_client = OllamaClient::new(config);
 
-    let request = EmbeddingRequest {
-        model: model_name,
-        prompt: question.to_string(),
-    };
-
-    // Call Ollama to generate embeddings
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&ollama_endpoint)
-        .json(&request)
-        .send()
-        .await
-        .map_err(|e| {
-            eprintln!("Failed to send request to Ollama for question: {}", e);
-            AppError::Reqwest(e)
-        })?;
-
-    // Parse the JSON response
-    let response_text = response.text().await.map_err(|e| {
-        eprintln!(
-            "Failed to read response text from Ollama for question: {}",
-            e
-        );
-        AppError::Reqwest(e)
-    })?;
-    let embedding_response: OllamaEmbeddingResponse = serde_json::from_str(&response_text)
-        .map_err(|e| {
-            eprintln!("Failed to parse Ollama response for question: {}", e);
-            AppError::Json(e)
-        })?;
+    // Generate embedding for the question using OllamaClient
+    let embedding = ollama_client.generate_embedding(question).await?;
 
     // Extract embedding from response
-    let question_embedding = embedding_response.embedding;
+    let question_embedding = embedding;
 
     // Create a Qdrant client
     let qdrant_client = QdrantClient::new(
@@ -88,7 +45,7 @@ pub async fn retrieve_context(
         config.qdrant.vector_size as u64,
         config.qdrant.distance.clone(),
         config.qdrant.limit as u64,
-        config.qdrant.score_threshold as f32,
+        config.qdrant.score_threshold,
     );
 
     // Search Qdrant for similar documents using the question embedding

@@ -11,6 +11,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use std::env;
+use std::sync::Arc;
 
 use crate::load_config;
 use crate::AppError;
@@ -31,7 +32,7 @@ pub async fn start_server() -> Result<(), AppError> {
     let passthrough_mode = args.iter().any(|arg| arg == "--passthrough");
 
     // Load configuration from config.toml
-    let config = load_config()?;
+    let config = Arc::new(load_config()?);
 
     // Build the application with routes
     let app = Router::new();
@@ -49,6 +50,8 @@ pub async fn start_server() -> Result<(), AppError> {
             post(handle_rag_request),
         )
     };
+    
+    let app = app.with_state(config.clone());
 
     // Add health check endpoint to the app
     let app = app.route("/health", get(health_check));

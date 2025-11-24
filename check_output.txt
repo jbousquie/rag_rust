@@ -1,0 +1,224 @@
+    Checking rag_rust v0.1.0 (/home/jerome/scripts/rust/rag_rust)
+error[E0252]: the name `Config` is defined multiple times
+  --> src/rag_proxy/handler.rs:17:5
+   |
+16 | use crate::Config;
+   |     ------------- previous import of the type `Config` here
+17 | use crate::Config;
+   |     ^^^^^^^^^^^^^ `Config` reimported here
+   |
+   = note: `Config` must be defined only once in the type namespace of this module
+
+error[E0432]: unresolved import `uuid`
+  --> src/indexing/indexer.rs:11:5
+   |
+11 | use uuid::Uuid;
+   |     ^^^^ use of unresolved module or unlinked crate `uuid`
+   |
+   = help: if you wanted to use a crate named `uuid`, use `cargo add uuid` to add it to your `Cargo.toml`
+
+error: cannot find derive macro `Deserialize` in this scope
+  --> src/indexing/indexer.rs:18:10
+   |
+18 | #[derive(Deserialize)]
+   |          ^^^^^^^^^^^
+   |
+help: consider importing one of these derive macros
+   |
+ 7 + use crate::Deserialize;
+   |
+ 7 + use serde::Deserialize;
+   |
+
+error[E0422]: cannot find struct, variant or union type `EmbeddingRequest` in this scope
+   --> src/indexing/indexer.rs:242:27
+    |
+242 |             let request = EmbeddingRequest {
+    |                           ^^^^^^^^^^^^^^^^ not found in this scope
+    |
+note: struct `crate::clients::ollama::EmbeddingRequest` exists but is inaccessible
+   --> src/clients/ollama.rs:6:1
+    |
+  6 | struct EmbeddingRequest {
+    | ^^^^^^^^^^^^^^^^^^^^^^^ not accessible
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `qdrant_custom_client`
+   --> src/indexing/indexer.rs:297:29
+    |
+297 |         let qdrant_client = qdrant_custom_client::QdrantClient::new(
+    |                             ^^^^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `qdrant_custom_client`
+    |
+    = help: if you wanted to use a crate named `qdrant_custom_client`, use `cargo add qdrant_custom_client` to add it to your `Cargo.toml`
+help: consider importing this struct
+    |
+  7 + use crate::qdrant_custom_client::QdrantClient;
+    |
+help: if you import `QdrantClient`, refer to it directly
+    |
+297 -         let qdrant_client = qdrant_custom_client::QdrantClient::new(
+297 +         let qdrant_client = QdrantClient::new(
+    |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `qdrant_custom_client`
+   --> src/indexing/indexer.rs:355:25
+    |
+355 |             let point = qdrant_custom_client::Point {
+    |                         ^^^^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `qdrant_custom_client`
+    |
+    = help: if you wanted to use a crate named `qdrant_custom_client`, use `cargo add qdrant_custom_client` to add it to your `Cargo.toml`
+help: consider importing this module
+    |
+  7 + use crate::qdrant_custom_client;
+    |
+
+warning: unused import: `crate::Config`
+  --> src/rag_proxy/handler.rs:17:5
+   |
+17 | use crate::Config;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `reqwest`
+ --> src/rag_proxy/passthrough_handler.rs:9:5
+  |
+9 | use reqwest;
+  |     ^^^^^^^
+
+warning: unused imports: `error`, `info`, and `warn`
+  --> src/rag_proxy/retriever.rs:11:15
+   |
+11 | use tracing::{info, error, warn};
+   |               ^^^^  ^^^^^  ^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/rag_proxy/retriever.rs:12:13
+   |
+12 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `serde_json`
+  --> src/rag_proxy/retriever.rs:13:5
+   |
+13 | use serde_json;
+   |     ^^^^^^^^^^
+
+error[E0061]: this method takes 3 arguments but 2 arguments were supplied
+   --> src/indexing/indexer.rs:145:33
+    |
+145 |             match qdrant_client.upsert_points(&collection_name, points).await {
+    |                                 ^^^^^^^^^^^^^-------------------------- argument #3 of type `Vec<(std::string::String, Vec<f32>)>` is missing
+    |
+note: expected `String`, found `Vec<Point>`
+   --> src/indexing/indexer.rs:145:65
+    |
+145 |             match qdrant_client.upsert_points(&collection_name, points).await {
+    |                                                                 ^^^^^^
+    = note: expected struct `std::string::String`
+               found struct `Vec<Point>`
+note: method defined here
+   --> src/qdrant_custom_client.rs:327:18
+    |
+327 |     pub async fn upsert_points(
+    |                  ^^^^^^^^^^^^^
+...
+330 |         filename: String,
+    |         ----------------
+331 |         chunks: Vec<(String, Vec<f32>)>,
+    |         -------------------------------
+help: provide the argument
+    |
+145 -             match qdrant_client.upsert_points(&collection_name, points).await {
+145 +             match qdrant_client.upsert_points(&collection_name, /* std::string::String */, /* Vec<(std::string::String, Vec<f32>)> */).await {
+    |
+
+error[E0061]: this function takes 7 arguments but 6 arguments were supplied
+   --> src/rag_proxy/retriever.rs:44:25
+    |
+ 44 |     let qdrant_client = QdrantClient::new(
+    |                         ^^^^^^^^^^^^^^^^^
+...
+ 47 |         config.qdrant.vector_size as u64,
+    |         -------------------------------- expected `std::string::String`, found `u64`
+ 48 |         config.qdrant.distance.clone(),
+    |         ------------------------------ expected `u64`, found `std::string::String`
+ 49 |         config.qdrant.limit as u64,
+    |         -------------------------- argument #5 of type `std::string::String` is missing
+    |
+note: associated function defined here
+   --> src/qdrant_custom_client.rs:149:12
+    |
+149 |     pub fn new(
+    |            ^^^
+...
+154 |         distance: String,
+    |         ----------------
+help: did you mean
+    |
+ 44 -     let qdrant_client = QdrantClient::new(
+ 45 -         config.qdrant.host.clone(),
+ 46 -         config.qdrant.port,
+ 47 -         config.qdrant.vector_size as u64,
+ 48 -         config.qdrant.distance.clone(),
+ 49 -         config.qdrant.limit as u64,
+ 50 -         config.qdrant.score_threshold as f32,
+ 51 -     );
+ 44 +     let qdrant_client = QdrantClient::new(config.qdrant.host.clone(), config.qdrant.port, config.qdrant.distance.clone(), config.qdrant.vector_size as u64, /* std::string::String */, config.qdrant.limit as u64, config.qdrant.score_threshold as f32);
+    |
+
+error[E0308]: mismatched types
+  --> src/clients/ollama.rs:60:32
+   |
+60 |                 AppError::Json(e)
+   |                 -------------- ^ expected `serde_json::Error`, found `reqwest::Error`
+   |                 |
+   |                 arguments to this enum variant are incorrect
+   |
+   = note: `reqwest::Error` and `serde_json::Error` have similar names, but are actually distinct types
+note: `reqwest::Error` is defined in crate `reqwest`
+  --> /home/jerome/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.24/src/error.rs:17:1
+   |
+17 | pub struct Error {
+   | ^^^^^^^^^^^^^^^^
+note: `serde_json::Error` is defined in crate `serde_json`
+  --> /home/jerome/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.145/src/error.rs:17:1
+   |
+17 | pub struct Error {
+   | ^^^^^^^^^^^^^^^^
+note: tuple variant defined here
+  --> src/lib.rs:85:5
+   |
+85 |     Json(#[from] serde_json::Error),
+   |     ^^^^
+
+error[E0277]: the trait bound `OllamaEmbeddingResponse: serde::Deserialize<'de>` is not satisfied
+    --> src/indexing/indexer.rs:277:63
+     |
+ 277 |             let embedding_response: OllamaEmbeddingResponse = serde_json::from_str(&response_text)
+     |                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `OllamaEmbeddingResponse`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `OllamaEmbeddingResponse` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+             and 196 others
+note: required by a bound in `serde_json::from_str`
+    --> /home/jerome/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.145/src/de.rs:2699:8
+     |
+2697 | pub fn from_str<'a, T>(s: &'a str) -> Result<T>
+     |        -------- required by a bound in this function
+2698 | where
+2699 |     T: de::Deserialize<'a>,
+     |        ^^^^^^^^^^^^^^^^^^^ required by this bound in `from_str`
+
+Some errors have detailed explanations: E0061, E0252, E0277, E0308, E0422, E0432, E0433.
+For more information about an error, try `rustc --explain E0061`.
+warning: `rag_rust` (lib) generated 5 warnings
+error: could not compile `rag_rust` (lib) due to 10 previous errors; 5 warnings emitted

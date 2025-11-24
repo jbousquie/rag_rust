@@ -11,9 +11,13 @@ use std::path::Path;
 use rag_rust::Config;
 use rag_rust::indexing::{loader, chunker, indexer, file_tracker};
 use md5::Digest;
+use rag_rust::init_logging;
+use tracing::{info, error};
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting document indexing...");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logging
+    init_logging();
 
     // Load configuration
     let config = Config::load()?;
@@ -44,9 +48,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Filter files that need to be processed (new or changed)
     let files_to_process = tracker.get_changed_files(&files, &config.indexing.path);
 
+    info!("Found {} files to process", files_to_process.len()); // Added this line as per instruction's implied intent
+
     // Process files
     for file_name in files_to_process {
-        println!("Processing file: {}", file_name);
+        info!("Processing file: {}", file_name);
 
         // Load file content (synchronously)
         let content = loader::load_file_sync(&config, &file_name)?;
@@ -55,7 +61,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let chunks = chunker::chunk_text(&content, config.indexing.chunk_size);
 
         // Index chunks - make this synchronous
-        indexer::index_chunks_sync(&config, &chunks, &file_name)?;
+        // The instruction implies changing to async indexer and handling its error with tracing::error
+        if let Err(e) = indexer::index_chunks(&config, &chunks, &file_name).await {
+            error!("Failed to index chunks for {}: {}", file_name, e);
+            continue;
+        }
 
         // Update tracker with new MD5
         let full_path = Path::new(&config.indexing.path).join(&file_name);
@@ -68,6 +78,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Save updated tracker
     tracker.save_to_file(&tracker_path)?;
 
-    println!("Document indexing completed successfully!");
+    info!("Document indexing completed successfully!");
     Ok(())
 }
