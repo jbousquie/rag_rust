@@ -71,7 +71,7 @@ Ce module contient toute la logique du serveur HTTP.
     *   Envoie le prompt au LLM distant
     *   Retourne la réponse au client
 -   `retriever.rs` : Gère spécifiquement l'interaction avec Qdrant. Il prend une question, la vectorise et effectue la recherche de similarité pour récupérer le contexte.
--   `llm_caller.rs` : Gère la communication avec le LLM distant. Il est responsable de la construction du prompt final et de l'envoi de la requête HTTP à l'API du LLM.
+-   `passthrough_handler.rs` : Gère spécifiquement les requêtes en mode 'passthrough' (sans traitement RAG) pour le débogage et la compatibilité.
 
 ### `src/qdrant_custom_client.rs`
 Ce module contient un client personnalisé pour interagir avec Qdrant. Il fournit des fonctionnalités de base pour tester la connectivité au serveur Qdrant, vérifier l'existence de collections, créer de nouvelles collections et insérer des points (vecteurs) dans les collections.
@@ -317,6 +317,19 @@ Pour résoudre le problème de compatibilité avec QwenCLI, nous avons implémen
 ### Mise à jour : Transmission directe des réponses LLM
 
 Nous avons apporté une amélioration supplémentaire en transmettant directement la réponse du LLM au client sans reconstruction de la structure de réponse. Cette approche assure une compatibilité maximale avec des clients comme QwenCLI qui s'attendent à recevoir exactement la même structure de réponse que celle fournie par le LLM directement.
+
+### Mise à jour : Optimisation du remplacement du message système
+
+Pour améliorer l'efficacité du remplacement du message système dans les cas où le contenu original est très volumineux, une **optimisation par empreinte (fingerprint)** a été implémentée :
+
+1. **Empreinte configurable** : Une taille d'empreinte (en nombre de caractères) est définie dans le fichier de configuration via le paramètre `system_message_fingerprint_length`
+2. **Remplacement intelligent** : Plutôt que de remplacer l'ensemble du contenu original (potentiellement très long), le système utilise les derniers N caractères du message original comme "empreinte" pour cibler le remplacement
+3. **Évite les collisions accidentelles** : En utilisant une empreinte de 255 caractères par défaut, la probabilité de collision est extrêmement faible
+4. **Plus efficace** : Le remplacement cible une sous-chaîne plus petite, ce qui est plus efficace que de rechercher et remplacer une très longue chaîne
+
+La valeur par défaut de 255 caractères a été choisie pour équilibrer efficacité et sécurité, car la probabilité d'avoir 255 caractères identiques ailleurs dans un message système est extrêmement faible.
+
+Cette configuration est accessible via le paramètre `system_message_fingerprint_length` dans la section `[rag_proxy]` du fichier de configuration `config.toml`.
 
 ### Recommandations pour l'avenir
 
