@@ -45,7 +45,7 @@ Le projet est structuré en modules clairs pour séparer les responsabilités :
 
 -   `Cargo.toml` : Définit les métadonnées du projet et ses dépendances (axum, reqwest, qdrant-client, tokio, etc.).
 -   `src/main.rs` : Point d'entrée de l'application. Il est responsable de parser les arguments de la ligne de commande pour lancer soit le processus d'indexation, soit le serveur proxy.
--   `src/lib.rs` : Contient du code partagé et des utilitaires qui peuvent être utilisés par les deux binaires (par exemple, la configuration, la gestion des erreurs).
+-   `src/lib.rs` : Contient du code partagé et des utilitaires qui peuvent être utilisés par les deux binaires (par exemple, la configuration, la gestion des erreurs avec `AppError`). Définit l'enum `AppError` qui centralise tous les types d'erreurs possibles (IO, Réseau, Parsing, Qdrant, etc.) et implémente `IntoResponse` pour une intégration fluide avec Axum.
 
 ### `src/indexing/`
 Ce module gère tout le processus de transformation des documents bruts en vecteurs stockés.
@@ -457,3 +457,35 @@ Ou après compilation :
 2. **Paramètres configurables** : Tous les paramètres sont lus depuis le fichier de configuration, sans valeurs codées en dur
 3. **Intégration** : Le binaire fait partie intégrante du projet et suit les mêmes conventions de configuration
 4. **Sécurité** : Utilise les mêmes paramètres d'authentification que les autres composants du projet
+
+## 12. Gestion des Erreurs
+
+### Stratégie Globale
+
+Le projet adopte une stratégie de gestion des erreurs robuste et centralisée pour garantir la stabilité et la maintenabilité du code. L'objectif principal est d'éliminer toutes les paniques (`panic!`, `unwrap()`, `expect()`) au profit d'une propagation explicite des erreurs via le type `Result`.
+
+### Type `AppError`
+
+Un type d'erreur personnalisé `AppError` a été défini dans `src/lib.rs` en utilisant la crate `thiserror`. Ce type énumère toutes les catégories d'erreurs possibles dans l'application :
+
+- `Io`: Erreurs d'entrée/sortie (fichiers, etc.)
+- `Toml`: Erreurs de parsing de configuration
+- `Reqwest`: Erreurs réseau et HTTP
+- `Json`: Erreurs de sérialisation/désérialisation JSON
+- `Qdrant`: Erreurs spécifiques à l'API Qdrant
+- `Config`: Erreurs de validation de configuration
+- `Pdf`: Erreurs lors de l'extraction de texte PDF
+- `Docx`: Erreurs lors de l'extraction de texte DOCX
+- `Llm`: Erreurs lors de la communication avec le LLM
+- `Unknown`: Erreurs génériques ou non classifiées
+
+### Intégration avec Axum
+
+Pour le serveur proxy RAG (`rag_proxy`), `AppError` implémente le trait `IntoResponse` d'Axum. Cela permet de convertir automatiquement les erreurs propagées depuis les handlers en réponses HTTP appropriées avec les codes de statut corrects (500 Internal Server Error, 502 Bad Gateway, 400 Bad Request, etc.) et un corps JSON structuré décrivant l'erreur.
+
+### Avantages
+
+1.  **Stabilité** : Le serveur ne crashe pas en cas d'erreur inattendue.
+2.  **Clarté** : Les signatures de fonction `Result<T, AppError>` indiquent clairement les possibilités d'échec.
+3.  **Débogage** : Les erreurs sont typées et contiennent des messages contextuels, facilitant le diagnostic.
+4.  **Expérience Client** : Les clients reçoivent des réponses d'erreur HTTP standards et informatives.
