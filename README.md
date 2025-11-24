@@ -94,6 +94,8 @@ Lorsque cette situation se produit, le contenu du PDF n'est pas indexé (une cha
 │   │   ├── retriever.rs # Recherche dans Qdrant
 │   │   ├── passthrough_handler.rs # Gestion des requêtes en mode 'passthrough' sans RAG
 │   │   └── main.rs     # Point d'entrée du binaire du proxy RAG
+│   └── reset_documents/ # Logique de réinitialisation des documents
+│       └── main.rs     # Point d'entrée du binaire de réinitialisation
 ├── data_sources/       # Dossier source pour les documents à indexer
 ├── index_tracker.json  # Fichier de suivi des fichiers indexés
 └── ...
