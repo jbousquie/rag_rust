@@ -197,32 +197,18 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
 
         // If we found the original system content, replace it in the original JSON string
         if let Some(original_content) = original_system_content {
-            // Get the fingerprint length from configuration
-            let fingerprint_length = config.rag_proxy.system_message_fingerprint_length;
-
-            // Get the last fingerprint_length characters of the original content
-            let fingerprint_end = if original_content.len() > fingerprint_length {
-                original_content.len() - fingerprint_length
-            } else {
-                0
-            };
-            let fingerprint = &original_content[fingerprint_end..];
-
-            // Escape the fingerprint and new content for JSON
-            let escaped_fingerprint = serde_json::to_string(fingerprint)
-                .unwrap_or_else(|_| serde_json::Value::String(fingerprint.to_string()).to_string());
+            // Escape both original and new content for JSON
+            let escaped_original_content = serde_json::to_string(&original_content)
+                .unwrap_or_else(|_| serde_json::Value::String(original_content.clone()).to_string());
             let escaped_new_context = serde_json::to_string(&new_context)
                 .unwrap_or_else(|_| serde_json::Value::String(new_context.clone()).to_string());
 
             // Remove the quotes added by serde_json::to_string
-            let escaped_fingerprint = &escaped_fingerprint[1..escaped_fingerprint.len()-1];
+            let escaped_original_content = &escaped_original_content[1..escaped_original_content.len()-1];
             let escaped_new_context = &escaped_new_context[1..escaped_new_context.len()-1];
 
-            // Create the replacement string: fingerprint concatenated with new context
-            let replacement = format!("{}{}", fingerprint, escaped_new_context);
-
-            // Replace the fingerprint with the replacement in the JSON string
-            request_str.replace(escaped_fingerprint, &replacement)
+            // Replace the original content with the new content in the JSON string
+            request_str.replace(escaped_original_content, escaped_new_context)
         } else {
             // If no system message was found, add a new one by finding the messages array
             // and inserting a new system message at the beginning

@@ -17,15 +17,10 @@ chunk_size = 512
 embeddings_chunk_size = 10
 
 [rag_proxy]
-# Configuration du proxy RAG
+# Paramètres du proxy RAG
 port = 3000
 host = "127.0.0.1"
 chat_completion_endpoint = "/v1/chat/completions"
-# Taille du "fingerprint" utilisé pour la mise à jour intelligente du message système
-# dans les requêtes RAG. Permet d'éviter de remplacer accidentellement du contenu
-# similaire dans d'autres parties de la requête. Une valeur de 255 caractères
-# est généralement suffisante pour assurer l'unicité tout en restant efficace.
-system_message_fingerprint_length = 255
 
 [llm]
 # Configuration de l'API LLM
