@@ -5,6 +5,7 @@
 //! between text processing and database storage.
 
 use crate::Config;
+use crate::AppError;
 use crate::qdrant_custom_client;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -31,12 +32,12 @@ struct OllamaEmbeddingResponse {
 /// * `filename` - Name of the source file being indexed
 ///
 /// # Returns
-/// * `Result<(), Box<dyn std::error::Error>>` - Ok if successful, error otherwise
+/// * `Result<(), AppError>` - Ok if successful, error otherwise
 pub async fn index_chunks(
     config: &Config,
     chunks: &[String],
     filename: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), AppError> {
     println!("Indexing {} chunks from file: {}", chunks.len(), filename);
 
     // Start timing the indexing process
@@ -90,7 +91,7 @@ pub async fn index_chunks(
                         "Failed to send request to Ollama for file {}: {}",
                         filename, e
                     );
-                    format!("Failed to send request to Ollama: {}", e)
+                    AppError::Reqwest(e)
                 })?;
 
             // Log the raw response for debugging
@@ -99,7 +100,7 @@ pub async fn index_chunks(
                     "Failed to read response text from Ollama for file {}: {}",
                     filename, e
                 );
-                format!("Failed to read response text from Ollama: {}", e)
+                AppError::Reqwest(e)
             })?;
             /*/
             println!(
@@ -144,7 +145,7 @@ pub async fn index_chunks(
             }
             Err(e) => {
                 eprintln!("Failed to connect to Qdrant server: {}", e);
-                return Err(format!("Failed to connect to Qdrant server: {}", e).into());
+                return Err(e);
             }
         }
 
@@ -189,11 +190,10 @@ pub async fn index_chunks(
                         "Failed to upsert points into collection '{}'",
                         collection_name
                     );
-                    return Err(format!(
+                    return Err(AppError::Qdrant(format!(
                         "Failed to upsert points into collection '{}'",
                         collection_name
-                    )
-                    .into());
+                    )));
                 }
             }
             Err(e) => {
@@ -201,11 +201,10 @@ pub async fn index_chunks(
                     "Failed to upsert points into collection '{}': {}",
                     collection_name, e
                 );
-                return Err(format!(
+                return Err(AppError::Qdrant(format!(
                     "Failed to upsert points into collection '{}': {}",
                     collection_name, e
-                )
-                .into());
+                )));
             }
         }
     } else {
@@ -232,12 +231,12 @@ pub async fn index_chunks(
 /// * `filename` - Name of the source file being indexed
 ///
 /// # Returns
-/// * `Result<(), Box<dyn std::error::Error>>` - Ok if successful, error otherwise
+/// * `Result<(), AppError>` - Ok if successful, error otherwise
 pub fn index_chunks_sync(
     config: &Config,
     chunks: &[String],
     filename: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), AppError> {
     println!("Indexing {} chunks from file: {}", chunks.len(), filename);
 
     // Start timing the indexing process
@@ -291,7 +290,7 @@ pub fn index_chunks_sync(
                         "Failed to send request to Ollama for file {}: {}",
                         filename, e
                     );
-                    format!("Failed to send request to Ollama: {}", e)
+                    AppError::Reqwest(e)
                 })?;
 
             // Log the raw response for debugging
@@ -300,7 +299,7 @@ pub fn index_chunks_sync(
                     "Failed to read response text from Ollama for file {}: {}",
                     filename, e
                 );
-                format!("Failed to read response text from Ollama: {}", e)
+                AppError::Reqwest(e)
             })?;
             /*
             println!(
@@ -346,7 +345,7 @@ pub fn index_chunks_sync(
             }
             Err(e) => {
                 eprintln!("Failed to connect to Qdrant server: {}", e);
-                return Err(format!("Failed to connect to Qdrant server: {}", e).into());
+                return Err(e);
             }
         }
 
@@ -366,27 +365,22 @@ pub fn index_chunks_sync(
                                 println!("Collection '{}' created successfully", collection_name);
                             } else {
                                 eprintln!("Failed to create collection '{}'", collection_name);
-                                return Err(format!(
+                                return Err(AppError::Qdrant(format!(
                                     "Failed to create collection '{}'",
                                     collection_name
-                                )
-                                .into());
+                                )));
                             }
                         }
                         Err(e) => {
                             eprintln!("Failed to create collection '{}': {}", collection_name, e);
-                            return Err(format!(
-                                "Failed to create collection '{}': {}",
-                                collection_name, e
-                            )
-                            .into());
+                            return Err(e);
                         }
                     }
                 }
             }
             Err(e) => {
                 eprintln!("Failed to check collection existence: {}", e);
-                return Err(format!("Failed to check collection existence: {}", e).into());
+                return Err(e);
             }
         }
 
@@ -427,11 +421,10 @@ pub fn index_chunks_sync(
                         "Failed to upsert points into collection '{}'",
                         collection_name
                     );
-                    return Err(format!(
+                    return Err(AppError::Qdrant(format!(
                         "Failed to upsert points into collection '{}'",
                         collection_name
-                    )
-                    .into());
+                    )));
                 }
             }
             Err(e) => {
@@ -439,11 +432,10 @@ pub fn index_chunks_sync(
                     "Failed to upsert points into collection '{}': {}",
                     collection_name, e
                 );
-                return Err(format!(
+                return Err(AppError::Qdrant(format!(
                     "Failed to upsert points into collection '{}': {}",
                     collection_name, e
-                )
-                .into());
+                )));
             }
         }
     } else {

@@ -62,12 +62,68 @@ pub struct QdrantConfig {
     pub score_threshold: f32,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AppError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("TOML parsing error: {0}")]
+    Toml(#[from] toml::de::Error),
+    #[error("Network error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Qdrant error: {0}")]
+    Qdrant(String),
+    #[error("Configuration error: {0}")]
+    Config(String),
+    #[error("PDF extraction error: {0}")]
+    Pdf(String),
+    #[error("DOCX extraction error: {0}")]
+    Docx(String),
+    #[error("LLM error: {0}")]
+    Llm(String),
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+}
+
+impl axum::response::IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, error_message) = match self {
+            AppError::Io(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            AppError::Toml(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            AppError::Reqwest(e) => (axum::http::StatusCode::BAD_GATEWAY, e.to_string()),
+            AppError::Json(e) => (axum::http::StatusCode::BAD_REQUEST, e.to_string()),
+            AppError::Qdrant(e) => (axum::http::StatusCode::BAD_GATEWAY, e),
+            AppError::Config(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e),
+            AppError::Pdf(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e),
+            AppError::Docx(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e),
+            AppError::Llm(e) => (axum::http::StatusCode::BAD_GATEWAY, e),
+            AppError::Unknown(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e),
+        };
+
+        let body = serde_json::json!({
+            "error": {
+                "message": error_message,
+                "type": "AppError"
+            }
+        });
+
+        (status, axum::Json(body)).into_response()
+    }
+}
+
+impl From<String> for AppError {
+    fn from(err: String) -> Self {
+        AppError::Unknown(err)
+    }
+}
+
 impl Config {
     /// Loads configuration from the config.toml file
     ///
     /// # Returns
-    /// * `Result<Config, Box<dyn std::error::Error>>` - Configuration object if successful, error otherwise
-    pub fn load() -> Result<Config, Box<dyn std::error::Error>> {
+    /// * `Result<Config, AppError>` - Configuration object if successful, error otherwise
+    pub fn load() -> Result<Config, AppError> {
         let config_content = fs::read_to_string("config.toml")?;
         let config: Config = toml::from_str(&config_content)?;
         Ok(config)
@@ -75,8 +131,8 @@ impl Config {
 }
 
 /// Load configuration from config.toml
-pub fn load_config() -> Config {
-    Config::load().expect("Failed to load configuration")
+pub fn load_config() -> Result<Config, AppError> {
+    Config::load()
 }
 
 pub mod indexing;

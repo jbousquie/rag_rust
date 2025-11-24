@@ -4,11 +4,12 @@
 //! in passthrough mode, where requests are forwarded directly to the LLM
 //! without any RAG processing.
 
-use axum::{Json, body::Bytes, http::{StatusCode, HeaderValue}, response::IntoResponse};
+use axum::{Json, body::Bytes, http::HeaderValue, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use reqwest;
 
 use crate::load_config;
+use crate::AppError;
 
 /// Chat completion request structure
 /// This matches the OpenAI API format for chat completions
@@ -59,52 +60,47 @@ pub struct ChatMessage {
 /// * `request` - The incoming request as raw bytes
 ///
 /// # Returns
-/// * `impl IntoResponse` - The response from the LLM service
-pub async fn handle_passthrough_request(request: Bytes) -> impl IntoResponse {
+/// * `Result<impl IntoResponse, AppError>` - The response from the LLM service
+pub async fn handle_passthrough_request(request: Bytes) -> Result<impl IntoResponse, AppError> {
     // Load configuration
-    let config = load_config();
+    let config = load_config()?;
 
     // Create HTTP client
     let client = reqwest::Client::new();
 
     // Forward the request to the LLM endpoint
-    match client
+    // Forward the request to the LLM endpoint
+    let response = client
         .post(&config.llm.endpoint)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", config.llm.api_key))
         .body(request.to_vec())
         .send()
         .await
-    {
-        Ok(response) => {
-            // Get the response body
-            match response.text().await {
-                Ok(body) => {
-                    // Try to parse as JSON to check if it's a valid OpenAI response
-                    match serde_json::from_str::<serde_json::Value>(&body) {
-                        Ok(json_value) => {
-                            // Create response with proper headers
-                            let mut response = Json(json_value).into_response();
-                            response.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
-                            response
-                        }
-                        Err(_) => {
-                            // If not valid JSON, return as text
-                            let mut response = body.into_response();
-                            response.headers_mut().insert("Content-Type", HeaderValue::from_static("text/plain"));
-                            response
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error reading LLM response body: {}", e);
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Error reading LLM response").into_response()
-                }
-            }
-        }
-        Err(e) => {
+        .map_err(|e| {
             eprintln!("Error forwarding request to LLM: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to forward request to LLM").into_response()
+            AppError::Reqwest(e)
+        })?;
+
+    // Get the response body
+    let body = response.text().await.map_err(|e| {
+        eprintln!("Error reading LLM response body: {}", e);
+        AppError::Reqwest(e)
+    })?;
+
+    // Try to parse as JSON to check if it's a valid OpenAI response
+    match serde_json::from_str::<serde_json::Value>(&body) {
+        Ok(json_value) => {
+            // Create response with proper headers
+            let mut response = Json(json_value).into_response();
+            response.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
+            Ok(response)
+        }
+        Err(_) => {
+            // If not valid JSON, return as text
+            let mut response = body.into_response();
+            response.headers_mut().insert("Content-Type", HeaderValue::from_static("text/plain"));
+            Ok(response)
         }
     }
 }

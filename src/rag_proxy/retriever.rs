@@ -5,6 +5,7 @@
 //! Qdrant for similar documents to provide context for the LLM.
 
 use crate::Config;
+use crate::AppError;
 use crate::qdrant_custom_client::QdrantClient;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -36,11 +37,11 @@ struct OllamaEmbeddingResponse {
 /// * `config` - The application configuration
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - The retrieved context or an error
+/// * `Result<String, AppError>` - The retrieved context or an error
 pub async fn retrieve_context(
     question: &str,
     config: &Config,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, AppError> {
     // Create an embedding for the question using Ollama
     let ollama_endpoint = format!("{}/api/embeddings", config.embeddings.endpoint);
     let model_name = config.embeddings.model.clone();
@@ -59,7 +60,7 @@ pub async fn retrieve_context(
         .await
         .map_err(|e| {
             eprintln!("Failed to send request to Ollama for question: {}", e);
-            format!("Failed to send request to Ollama: {}", e)
+            AppError::Reqwest(e)
         })?;
 
     // Parse the JSON response
@@ -68,12 +69,12 @@ pub async fn retrieve_context(
             "Failed to read response text from Ollama for question: {}",
             e
         );
-        format!("Failed to read response text from Ollama: {}", e)
+        AppError::Reqwest(e)
     })?;
     let embedding_response: OllamaEmbeddingResponse = serde_json::from_str(&response_text)
         .map_err(|e| {
             eprintln!("Failed to parse Ollama response for question: {}", e);
-            format!("Failed to parse Ollama response: {}", e)
+            AppError::Json(e)
         })?;
 
     // Extract embedding from response
@@ -102,7 +103,7 @@ pub async fn retrieve_context(
         .await
         .map_err(|e| {
             eprintln!("Failed to search Qdrant for question: {}", e);
-            format!("Failed to search Qdrant: {}", e)
+            e
         })?;
 
     // Extract the text content from the search results

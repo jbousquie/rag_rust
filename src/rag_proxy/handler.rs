@@ -7,12 +7,12 @@
 
 use axum::{
     body::Bytes,
-    http::StatusCode,
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::load_config;
+use crate::AppError;
 use crate::rag_proxy::retriever::retrieve_context;
 
 /// Chat completion request structure
@@ -74,70 +74,51 @@ pub struct ChatMessage {
 /// * `request` - The incoming chat completion request as raw bytes
 ///
 /// # Returns
-/// * `impl IntoResponse` - The response from the LLM service
-pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
+/// * `Result<impl IntoResponse, AppError>` - The response from the LLM service
+pub async fn handle_rag_request(request: Bytes) -> Result<impl IntoResponse, AppError> {
     // Convert bytes to string for JSON manipulation
-    let request_str = match std::str::from_utf8(&request) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Failed to parse request as UTF-8: {}", e);
-            return (StatusCode::BAD_REQUEST, "Failed to parse request").into_response();
-        }
-    };
+    // Convert bytes to string for JSON manipulation
+    let request_str = std::str::from_utf8(&request).map_err(|e| {
+        eprintln!("Failed to parse request as UTF-8: {}", e);
+        AppError::Unknown(format!("Invalid UTF-8: {}", e))
+    })?;
 
     // Parse the request to extract the user's question
-    let parsed_request: Result<ChatCompletionRequest, serde_json::Error> =
-        serde_json::from_slice(&request);
+    let parsed_request: ChatCompletionRequest = serde_json::from_slice(&request)?;
 
-    let user_question = match parsed_request {
-        Ok(req) => {
-            // Extract the user's question from the messages
-            req.messages
-                .last() // Use the last message as the user question (most recent user input)
-                .or_else(|| req.messages.iter().find(|msg| msg.role == "user")) // Fallback to find any user message
-                .map(|msg| {
-                    match &msg.content {
-                        MessageContent::Text(text) => text.clone(),
-                        MessageContent::Parts(parts) => {
-                            // For multimodal messages, concatenate all text parts
-                            parts
-                                .iter()
-                                .filter_map(|part| {
-                                    if part.r#type == "text" {
-                                        part.text.clone()
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .join(" ")
-                        }
+    let user_question = {
+        // Extract the user's question from the messages
+        parsed_request.messages
+            .last() // Use the last message as the user question (most recent user input)
+            .or_else(|| parsed_request.messages.iter().find(|msg| msg.role == "user")) // Fallback to find any user message
+            .map(|msg| {
+                match &msg.content {
+                    MessageContent::Text(text) => text.clone(),
+                    MessageContent::Parts(parts) => {
+                        // For multimodal messages, concatenate all text parts
+                        parts
+                            .iter()
+                            .filter_map(|part| {
+                                if part.r#type == "text" {
+                                    part.text.clone()
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ")
                     }
-                })
-                .unwrap_or_else(|| "No question provided".to_string())
-        }
-        Err(e) => {
-            eprintln!("Failed to parse request: {}", e);
-            eprintln!("Raw request content: {:?}", std::str::from_utf8(&request));
-            return (StatusCode::BAD_REQUEST, "Failed to parse request").into_response();
-        }
+                }
+            })
+            .unwrap_or_else(|| "No question provided".to_string())
     };
 
     // Load configuration
-    let config = load_config();
+    let config = load_config()?;
 
     // Retrieve relevant context from Qdrant
-    let context = match retrieve_context(&user_question, &config).await {
-        Ok(ctx) => ctx,
-        Err(e) => {
-            eprintln!("Error retrieving context: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to retrieve context",
-            )
-                .into_response();
-        }
-    };
+    // Retrieve relevant context from Qdrant
+    let context = retrieve_context(&user_question, &config).await?;
 
     // If we have context, modify the original JSON string by replacing system message content
     let modified_request_str = if !context.is_empty() {
@@ -145,8 +126,7 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
         let new_context = format!("--- Context from: RAG ---\n{}", context);
 
         // Extract original system message content to identify what to replace
-        let request_json: serde_json::Value = serde_json::from_str(request_str)
-            .expect("Failed to parse original request JSON");
+        let request_json: serde_json::Value = serde_json::from_str(request_str)?;
 
         let original_system_content = if let Some(messages) = request_json.get("messages") {
             if let Some(messages_array) = messages.as_array() {
@@ -263,38 +243,27 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
     let client = reqwest::Client::new();
 
     // Send the modified request directly to the LLM endpoint
-    let llm_response = match client
+    // Send the modified request directly to the LLM endpoint
+    let llm_response = client
         .post(&config.llm.endpoint)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", config.llm.api_key))
         .body(modified_request_str)
         .send()
         .await
-    {
-        Ok(response) => response,
-        Err(e) => {
+        .map_err(|e| {
             eprintln!("Error calling LLM: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to get response from LLM",
-            )
-                .into_response();
-        }
-    };
+            AppError::Reqwest(e)
+        })?;
 
     // Get the response body from the LLM
-    let llm_response_body = match llm_response.text().await {
-        Ok(body) => body,
-        Err(e) => {
-            eprintln!("Error reading LLM response body: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to read LLM response",
-            )
-                .into_response();
-        }
-    };
+    // Get the response body from the LLM
+    let llm_response_body = llm_response.text().await.map_err(|e| {
+        eprintln!("Error reading LLM response body: {}", e);
+        AppError::Reqwest(e)
+    })?;
 
+    // Try to parse the response as JSON
     // Try to parse the response as JSON
     match serde_json::from_str::<serde_json::Value>(&llm_response_body) {
         Ok(json_value) => {
@@ -304,7 +273,7 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
                 "Content-Type",
                 axum::http::HeaderValue::from_static("application/json"),
             );
-            response
+            Ok(response)
         }
         Err(_) => {
             // If not valid JSON, return as text
@@ -313,7 +282,7 @@ pub async fn handle_rag_request(request: Bytes) -> impl IntoResponse {
                 "Content-Type",
                 axum::http::HeaderValue::from_static("text/plain"),
             );
-            response
+            Ok(response)
         }
     }
 }

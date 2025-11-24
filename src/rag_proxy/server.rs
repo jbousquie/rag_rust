@@ -13,6 +13,7 @@ use std::net::SocketAddr;
 use std::env;
 
 use crate::load_config;
+use crate::AppError;
 use crate::rag_proxy::handler::handle_rag_request;
 use crate::rag_proxy::passthrough_handler::handle_passthrough_request;
 use tokio::net::TcpListener;
@@ -23,14 +24,14 @@ use tokio::net::TcpListener;
 /// incoming requests on the configured host and port.
 ///
 /// # Returns
-/// * `Result<(), Box<dyn std::error::Error>>` - Success or error
-pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
+/// * `Result<(), AppError>` - Success or error
+pub async fn start_server() -> Result<(), AppError> {
     // Check for passthrough argument from environment
     let args: Vec<String> = env::args().collect();
     let passthrough_mode = args.iter().any(|arg| arg == "--passthrough");
 
     // Load configuration from config.toml
-    let config = load_config();
+    let config = load_config()?;
 
     // Build the application with routes
     let app = Router::new();
@@ -54,15 +55,15 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create the socket address from configuration
     let addr = SocketAddr::from((
-        config.rag_proxy.host.parse::<std::net::IpAddr>()?,
+        config.rag_proxy.host.parse::<std::net::IpAddr>().map_err(|e| AppError::Config(format!("Invalid IP address: {}", e)))?,
         config.rag_proxy.port,
     ));
 
     println!("RAG proxy server starting on http://{}", addr);
 
     // Start the server with the configured address
-    let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    let listener = TcpListener::bind(addr).await.map_err(AppError::Io)?;
+    axum::serve(listener, app).await.map_err(AppError::Io)?;
 
     Ok(())
 }

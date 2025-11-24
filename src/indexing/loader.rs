@@ -14,6 +14,7 @@
 use std::fs;
 use std::path::Path;
 use crate::Config;
+use crate::AppError;
 use pdf_extract::extract_text;
 use docx_rust::DocxFile;
 
@@ -24,8 +25,8 @@ use docx_rust::DocxFile;
 /// * `filename` - Name of the file to load
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - File content if successful, error otherwise
-pub async fn load_file(config: &Config, filename: &str) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - File content if successful, error otherwise
+pub async fn load_file(config: &Config, filename: &str) -> Result<String, AppError> {
     let file_path = Path::new(&config.data_sources.path).join(filename);
 
     // Check file extension to determine loading method
@@ -54,7 +55,7 @@ pub async fn load_file(config: &Config, filename: &str) -> Result<String, Box<dy
         }
         _ => {
             // Default to text file loading
-            let content = tokio::fs::read_to_string(&file_path).await?;
+            let content = tokio::fs::read_to_string(&file_path).await.map_err(AppError::Io)?;
             Ok(content)
         }
     }
@@ -67,8 +68,8 @@ pub async fn load_file(config: &Config, filename: &str) -> Result<String, Box<dy
 /// * `filename` - Name of the file to load
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - File content if successful, error otherwise
-pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - File content if successful, error otherwise
+pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, AppError> {
     let file_path = Path::new(&config.data_sources.path).join(filename);
 
     // Check file extension to determine loading method
@@ -97,7 +98,7 @@ pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, Box<dyn
         }
         _ => {
             // Default to text file loading
-            let content = fs::read_to_string(&file_path)?;
+            let content = fs::read_to_string(&file_path).map_err(AppError::Io)?;
             Ok(content)
         }
     }
@@ -109,8 +110,8 @@ pub fn load_file_sync(config: &Config, filename: &str) -> Result<String, Box<dyn
 /// * `file_path` - Path to the PDF file
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - PDF content if successful, error otherwise
-async fn load_pdf_file(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - PDF content if successful, error otherwise
+async fn load_pdf_file(file_path: &Path) -> Result<String, AppError> {
     // Extract text from PDF using pdf-extract crate
     // Use spawn_blocking since pdf-extract is synchronous
     let path = file_path.to_path_buf();
@@ -148,13 +149,13 @@ async fn load_pdf_file(file_path: &Path) -> Result<String, Box<dyn std::error::E
 /// * `file_path` - Path to the DOCX file
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - DOCX content if successful, error otherwise
-async fn load_docx_file(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - DOCX content if successful, error otherwise
+async fn load_docx_file(file_path: &Path) -> Result<String, AppError> {
     // Extract text from DOCX using docx-rust crate
     // Use spawn_blocking since docx-rust is synchronous
     let path = file_path.to_path_buf();
     let path_clone = path.clone();  // Clone path to use in error handling outside the closure
-    let result = tokio::task::spawn_blocking(move || -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let result = tokio::task::spawn_blocking(move || -> Result<String, AppError> {
         // Load DOCX file using docx-rust API and extract text
         match DocxFile::from_file(&path) {
             Ok(docx_file) => {
@@ -197,13 +198,10 @@ async fn load_docx_file(file_path: &Path) -> Result<String, Box<dyn std::error::
     .await;
 
     match result {
-        Ok(content_result) => content_result.map_err(|e| -> Box<dyn std::error::Error> {
-            let error_msg = format!("{}", e);
-            Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg))
-        }),
+        Ok(content_result) => content_result,
         Err(join_err) => {
             eprintln!("Warning: Task join error for DOCX file '{:?}': {:?}", path_clone, join_err);
-            Err(std::io::Error::new(std::io::ErrorKind::Other, format!("Join error: {:?}", join_err)).into())
+            Err(AppError::Docx(format!("Join error: {:?}", join_err)))
         }
     }
 }
@@ -214,8 +212,8 @@ async fn load_docx_file(file_path: &Path) -> Result<String, Box<dyn std::error::
 /// * `file_path` - Path to the PDF file
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - PDF content if successful, error otherwise
-fn load_pdf_file_sync(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - PDF content if successful, error otherwise
+fn load_pdf_file_sync(file_path: &Path) -> Result<String, AppError> {
     // Extract text from PDF using pdf-extract crate
     // Use std::panic::catch_unwind to catch any panics from pdf-extract
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -243,8 +241,8 @@ fn load_pdf_file_sync(file_path: &Path) -> Result<String, Box<dyn std::error::Er
 /// * `file_path` - Path to the DOCX file
 ///
 /// # Returns
-/// * `Result<String, Box<dyn std::error::Error>>` - DOCX content if successful, error otherwise
-fn load_docx_file_sync(file_path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+/// * `Result<String, AppError>` - DOCX content if successful, error otherwise
+fn load_docx_file_sync(file_path: &Path) -> Result<String, AppError> {
     // Load DOCX file using docx-rust API and extract text
     match DocxFile::from_file(file_path) {
         Ok(docx_file) => {

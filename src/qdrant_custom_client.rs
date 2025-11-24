@@ -7,6 +7,7 @@
 use reqwest;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use crate::AppError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QdrantClient {
@@ -169,7 +170,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<TelemetryResponse, reqwest::Error>` - Telemetry information if successful, error otherwise
-    pub async fn health_check(&self) -> Result<TelemetryResponse, reqwest::Error> {
+    pub async fn health_check(&self) -> Result<TelemetryResponse, AppError> {
         let client = reqwest::Client::new();
         let url = format!("http://{}:{}/telemetry", self.host, self.port);
 
@@ -188,7 +189,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<TelemetryResponse, reqwest::Error>` - Telemetry information if successful, error otherwise
-    pub fn health_check_blocking(&self) -> Result<TelemetryResponse, reqwest::Error> {
+    pub fn health_check_blocking(&self) -> Result<TelemetryResponse, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!("http://{}:{}/telemetry", self.host, self.port);
 
@@ -206,7 +207,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection exists, false otherwise, or error
-    pub async fn collection_exists(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub async fn collection_exists(&self, collection_name: &str) -> Result<bool, AppError> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/exists",
@@ -233,7 +234,7 @@ impl QdrantClient {
     pub fn collection_exists_blocking(
         &self,
         collection_name: &str,
-    ) -> Result<bool, reqwest::Error> {
+    ) -> Result<bool, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/exists",
@@ -253,7 +254,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection was created successfully, false otherwise, or error
-    pub async fn create_collection(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub async fn create_collection(&self, collection_name: &str) -> Result<bool, AppError> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}",
@@ -289,7 +290,7 @@ impl QdrantClient {
     pub fn create_collection_blocking(
         &self,
         collection_name: &str,
-    ) -> Result<bool, reqwest::Error> {
+    ) -> Result<bool, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}",
@@ -328,7 +329,7 @@ impl QdrantClient {
         collection_name: &str,
         filename: String,
         chunks: Vec<(String, Vec<f32>)>,
-    ) -> Result<bool, reqwest::Error> {
+    ) -> Result<bool, AppError> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points",
@@ -402,7 +403,7 @@ impl QdrantClient {
         collection_name: &str,
         filename: String,
         chunks: Vec<(String, Vec<f32>)>,
-    ) -> Result<bool, reqwest::Error> {
+    ) -> Result<bool, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points",
@@ -477,7 +478,7 @@ impl QdrantClient {
         limit: u64,
         score_threshold: f32,
         filter: Option<serde_json::Value>,
-    ) -> Result<Vec<ScoredPoint>, String> {
+    ) -> Result<Vec<ScoredPoint>, AppError> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points/query",
@@ -503,27 +504,22 @@ impl QdrantClient {
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
-            .await
-            .map_err(|e| format!("Failed to send request: {}", e))?;
+            .await?;
 
         if response.status() != StatusCode::OK {
-            return Err(format!(
+            return Err(AppError::Qdrant(format!(
                 "Request failed with status code: {}",
                 response.status()
-            ));
+            )));
         }
 
         // Store the text response for debugging
         let response_text = response
             .text()
-            .await
-            .map_err(|e| format!("Failed to read response text: {}", e))?;
+            .await?;
 
         // Parse the JSON response
-        let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Failed to parse JSON response: {}", e)),
-        };
+        let search_response: SearchPointsResponse = serde_json::from_str(&response_text)?;
 
         // Return the parsed points
         Ok(search_response.result.points)
@@ -547,7 +543,7 @@ impl QdrantClient {
         limit: u64,
         score_threshold: f32,
         filter: Option<serde_json::Value>,
-    ) -> Result<Vec<ScoredPoint>, String> {
+    ) -> Result<Vec<ScoredPoint>, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}/points/query",
@@ -573,26 +569,21 @@ impl QdrantClient {
             .header("api-key", &self.api_key)
             .header("Content-Type", "application/json")
             .json(&request_body)
-            .send()
-            .map_err(|e| format!("Failed to send request: {}", e))?;
+            .send()?;
 
         if response.status() != StatusCode::OK {
-            return Err(format!(
+            return Err(AppError::Qdrant(format!(
                 "Request failed with status code: {}",
                 response.status()
-            ));
+            )));
         }
 
         // Store the text response for debugging
         let response_text = response
-            .text()
-            .map_err(|e| format!("Failed to read response text: {}", e))?;
+            .text()?;
 
         // Parse the JSON response
-        let search_response: SearchPointsResponse = match serde_json::from_str(&response_text) {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Failed to parse JSON response: {}", e)),
-        };
+        let search_response: SearchPointsResponse = serde_json::from_str(&response_text)?;
 
         // Return the parsed points
         Ok(search_response.result.points)
@@ -605,7 +596,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection was deleted successfully, false otherwise, or error
-    pub async fn delete_collection(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub async fn delete_collection(&self, collection_name: &str) -> Result<bool, AppError> {
         let client = reqwest::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}",
@@ -628,7 +619,7 @@ impl QdrantClient {
     ///
     /// # Returns
     /// * `Result<bool, reqwest::Error>` - True if collection was deleted successfully, false otherwise, or error
-    pub fn delete_collection_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+    pub fn delete_collection_blocking(&self, collection_name: &str) -> Result<bool, AppError> {
         let client = reqwest::blocking::Client::new();
         let url = format!(
             "http://{}:{}/collections/{}",
