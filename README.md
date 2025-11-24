@@ -38,6 +38,7 @@ Ce projet implémente un **proxy RAG (Retrieval-Augmented Generation)** simple e
     *   **Amélioration :** Le proxy RAG préserve maintenant exactement la structure originale des requêtes, en étendant uniquement le message système existant avec le contexte RAG (comportement de type 'passthrough' pour la structure des requêtes)
     *   **Compatibilité QwenCLI :** Correction du problème de compatibilité avec QwenCLI en utilisant une approche hybride : extraction du texte original du message système, enrichissement avec le contexte RAG, remplacement direct dans le body JSON sans reconstruction de la structure globale, envoi direct de la requête modifiée au LLM sans transformation en structure Rust, et réponse du LLM relayée directement au client sans reconstruction de la structure de réponse, combinant ainsi les avantages du mode 'passthrough' avec les fonctionnalités RAG
     *   **Optimisation du message système :** Ajout d'une configuration optionnelle `system_message_fingerprint_length` pour optimiser le remplacement du message système dans les requêtes RAG. Cette option permet d'utiliser une empreinte (fingerprint) de N caractères pour cibler précisément le remplacement dans le corps JSON, ce qui est plus efficace pour les très longs messages système. La valeur par défaut est de 255 caractères.
+*   **Réinitialisation des données :** Possibilité de réinitialiser complètement la base de connaissances vectorielle avec la commande `cargo run --bin reset_documents`, qui supprime la collection Qdrant et réinitialise le fichier de suivi des fichiers indexés.
 
 ## Prérequis
 
@@ -113,6 +114,8 @@ Le module `qdrant_custom_client.rs` fournit un client personnalisé pour interag
 - `create_collection_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de create_collection
 - `upsert_points(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Insère ou met à jour des points (vecteurs) dans une collection Qdrant
 - `upsert_points_blocking(collection_name: &str, points: Vec<Point>) -> Result<bool, reqwest::Error>` - Version synchrone de upsert_points
+- `delete_collection(collection_name: &str) -> Result<bool, reqwest::Error>` - Supprime une collection dans Qdrant
+- `delete_collection_blocking(collection_name: &str) -> Result<bool, reqwest::Error>` - Version synchrone de delete_collection
 
 ## Installation et Démarrage
 
@@ -140,6 +143,13 @@ Lancez le serveur proxy : Configurez les variables d'environnement nécessaires 
 cargo run --bin rag_proxy
 # OU
 ./target/release/rag_proxy
+```
+
+Réinitialisez la base de connaissances : Pour supprimer la collection Qdrant et réinitialiser le fichier de suivi des fichiers indexés, exécutez :
+```shell
+cargo run --bin reset_documents
+# OU
+./target/release/reset_documents
 ```
 
 Configurez votre client (CLI, Zed, etc.) pour qu'il envoie ses requêtes au serveur proxy démarré (par exemple, http://localhost:3000 si le serveur écoute sur ce port).

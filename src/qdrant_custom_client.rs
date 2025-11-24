@@ -597,4 +597,49 @@ impl QdrantClient {
         // Return the parsed points
         Ok(search_response.result.points)
     }
+
+    /// Deletes a collection in Qdrant
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to delete
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection was deleted successfully, false otherwise, or error
+    pub async fn delete_collection(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let url = format!(
+            "http://{}:{}/collections/{}",
+            self.host, self.port, collection_name
+        );
+
+        let response = client
+            .delete(&url)
+            .header("api-key", &self.api_key)
+            .send()
+            .await?;
+
+        Ok(response.status().is_success())
+    }
+
+    /// Blocking version of delete_collection for synchronous contexts
+    ///
+    /// # Arguments
+    /// * `collection_name` - Name of the collection to delete
+    ///
+    /// # Returns
+    /// * `Result<bool, reqwest::Error>` - True if collection was deleted successfully, false otherwise, or error
+    pub fn delete_collection_blocking(&self, collection_name: &str) -> Result<bool, reqwest::Error> {
+        let client = reqwest::blocking::Client::new();
+        let url = format!(
+            "http://{}:{}/collections/{}",
+            self.host, self.port, collection_name
+        );
+
+        let response = client
+            .delete(&url)
+            .header("api-key", &self.api_key)
+            .send()?;
+
+        Ok(response.status().is_success())
+    }
 }

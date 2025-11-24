@@ -411,3 +411,49 @@ Pour traiter les fichiers DOCX, nous avons intégré la crate `docx-rust` dans l
 1. **Problèmes de formatage complexes** : La crate `docx-rust` peut rencontrer des erreurs de parsing XML pour certains documents DOCX qui contiennent des éléments avancés ou mal formés (ex: erreur "MissingField { name: \"AbstractNum\", field: \"multi_level_type\" }").
 2. **Support limité** : Certains formats Word avancés peuvent ne pas être entièrement supportés par la crate `docx-rust`.
 3. **Perte de contenu** : Lorsque des erreurs de parsing se produisent, le contenu du fichier DOCX n'est pas indexé (une chaîne vide est retournée), mais le processus d'indexation continue pour les autres fichiers.
+
+## 11. Binaire de réinitialisation (reset_documents)
+
+### Contexte
+
+Afin de pouvoir réinitialiser la base de connaissances vectorielle dans Qdrant et effacer le suivi des fichiers indexés, un nouveau binaire `reset_documents` a été ajouté au projet.
+
+### Fonctionnalité
+
+Le binaire `reset_documents` permet de :
+1. Supprimer la collection Qdrant spécifiée dans le fichier de configuration (`config.toml`)
+2. Réinitialiser le contenu du fichier de suivi des fichiers indexés (`index_tracker.json`) en le vidant
+
+### Configuration
+
+Le binaire lit les paramètres de configuration depuis `config.toml` :
+- Hôte et port du serveur Qdrant
+- Clé API pour l'authentification
+- Nom de la collection à supprimer
+- Chemin du fichier de suivi des fichiers indexés
+
+### Mise en œuvre
+
+1. **Module** : Le binaire est implémenté dans `src/reset_documents/main.rs`
+2. **Client Qdrant** : Utilise le client personnalisé de `src/qdrant_custom_client.rs` qui a été étendu avec une méthode `delete_collection`
+3. **Suppression de la collection** : Envoie une requête HTTP DELETE à l'adresse `http://{host}:{port}/collections/{collection_name}`
+4. **Réinitialisation du fichier de suivi** : Vide le contenu du fichier `index_tracker.json` en écrivant `{}` à l'intérieur
+
+### Utilisation
+
+Le binaire peut être exécuté avec la commande :
+```bash
+cargo run --bin reset_documents
+```
+
+Ou après compilation :
+```bash
+./target/release/reset_documents
+```
+
+### Avantages
+
+1. **Gestion simplifiée** : Permet de réinitialiser facilement la base de connaissances sans intervention manuelle
+2. **Paramètres configurables** : Tous les paramètres sont lus depuis le fichier de configuration, sans valeurs codées en dur
+3. **Intégration** : Le binaire fait partie intégrante du projet et suit les mêmes conventions de configuration
+4. **Sécurité** : Utilise les mêmes paramètres d'authentification que les autres composants du projet

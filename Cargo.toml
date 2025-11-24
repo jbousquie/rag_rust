@@ -11,6 +11,10 @@ path = "src/indexing/main.rs"
 name = "rag_proxy"
 path = "src/rag_proxy/main.rs"
 
+[[bin]]
+name = "reset_documents"
+path = "src/reset_documents/main.rs"
+
 [dependencies]
 axum = { version = "0.8.7", features = ["macros"] }
 tokio = { version = "1.48.0", features = ["full"] }
