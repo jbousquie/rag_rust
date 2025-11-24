@@ -64,7 +64,7 @@ Lorsque cette situation se produit, le contenu du PDF n'est pas indexé (une cha
 
 *   **Langage :** [Rust](https://www.rust-lang.org/)
 *   **Serveur HTTP :** [axum](https://crates.io/crates/axum)
-*   **Lecture de fichiers :** `tokio::fs`, [pdf-extract](https://crates.io/crates/pdf-extract) (PDF), [docx-rs](https://crates.io/crates/docx-rs) (DOCX)
+*   **Lecture de fichiers :** `tokio::fs`, [pdf-extract](https://crates.io/crates/pdf-extract) (PDF), [docx-rust](https://crates.io/crates/docx-rust) (DOCX)
 *   **Découpage de texte (Chunking) :** [text-splitter](https://crates.io/crates/text-splitter) (ou logique manuelle)
 *   **Appels HTTP (Ollama, LLM distant) :** [reqwest](https://crates.io/crates/reqwest)
 *   **Base de Données Vectorielle :** [qdrant-client](https://crates.io/crates/qdrant-client)

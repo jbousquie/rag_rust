@@ -50,7 +50,7 @@ Le projet est structuré en modules clairs pour séparer les responsabilités :
 ### `src/indexing/`
 Ce module gère tout le processus de transformation des documents bruts en vecteurs stockés.
 -   `mod.rs` : Déclare les sous-modules et expose la fonction principale d'orchestration de l'indexation.
--   `loader.rs` : Fonctions pour charger le contenu de différents types de fichiers (ex: `.txt`, `.pdf`, `.docx`) depuis le répertoire `data_sources/`.
+-   `loader.rs` : Fonctions pour charger le contenu de différents types de fichiers (ex: `.txt`, `.pdf`, `.docx`) depuis le répertoire `data_sources/`. Utilise la crate `docx-rust` pour le traitement des documents DOCX.
 -   `chunker.rs` : Logique pour découper les textes chargés en fragments (chunks) de taille gérable, en utilisant des stratégies pour préserver le sens sémantique.
 -   `indexer.rs` : Orchestre la génération des embeddings pour chaque fragment en appelant Ollama et stocke ensuite les paires (fragment, vecteur) dans la collection Qdrant. Le processus d'indexation :
     *   Charge les fragments de texte
@@ -375,3 +375,26 @@ Un problème a été ouvert sur le dépôt GitHub de la crate `pdf-extract` pour
 
 1. **Perte de contenu** : Lorsqu'un PDF provoque une panique, son contenu n'est pas indexé (une chaîne vide est retournée à la place)
 2. **Dépendance à la crate originale** : Nous continuons à utiliser la crate qui présente le bogue, mais avec une protection contre les conséquences
+
+## 10. Support des fichiers DOCX avec la crate docx-rust
+
+### Problème identifié
+
+Pour permettre l'indexation des documents Word, le système devait prendre en charge le format DOCX en plus des formats existants (texte brut et PDF).
+
+### Solution mise en œuvre
+
+Pour traiter les fichiers DOCX, nous avons intégré la crate `docx-rust` dans le module de chargement de fichiers. L'implémentation extrait le texte des paragraphes et des runs à l'intérieur du document DOCX. La gestion des erreurs assure que si un fichier DOCX est corrompu ou mal formaté, le système continue à fonctionner en renvoyant une chaîne vide au lieu de planter.
+
+### Détails de l'implémentation
+
+1. **Fonctions de chargement DOCX** : Les fonctions `load_docx_file` et `load_docx_file_sync` dans le module `src/indexing/loader.rs` traitent les fichiers DOCX en extrayant le texte des paragraphes et runs à l'intérieur du document.
+2. **Gestion des erreurs** : Si une erreur se produit pendant l'analyse du fichier DOCX, le système retourne une chaîne vide, permettant au reste du processus d'indexation de continuer.
+3. **Séparation des threads** : Pour éviter de bloquer le runtime async, les opérations de lecture DOCX sont exécutées dans des threads séparés via `spawn_blocking`.
+4. **Sérialisation des erreurs** : Les erreurs sont gérées de manière à ce qu'elles puissent être transmises entre threads en toute sécurité.
+
+### Limitations connues
+
+1. **Problèmes de formatage complexes** : La crate `docx-rust` peut rencontrer des erreurs de parsing XML pour certains documents DOCX qui contiennent des éléments avancés ou mal formés (ex: erreur "MissingField { name: \"AbstractNum\", field: \"multi_level_type\" }").
+2. **Support limité** : Certains formats Word avancés peuvent ne pas être entièrement supportés par la crate `docx-rust`.
+3. **Perte de contenu** : Lorsque des erreurs de parsing se produisent, le contenu du fichier DOCX n'est pas indexé (une chaîne vide est retournée), mais le processus d'indexation continue pour les autres fichiers.
