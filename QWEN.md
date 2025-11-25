@@ -100,7 +100,7 @@ Le proxy RAG ne contient pas de LLM lui-même, mais interagit avec un service ex
 
 ### Compatibilité et Robustesse
 - Mode `--passthrough` pour le débogage sans traitement RAG
-- Préservation de la structure JSON originale des requêtes pour compatibilité maximale avec les clients
+- Manipulation dynamique du JSON des requêtes pour une compatibilité maximale avec les clients
 - Gestion robuste des fichiers PDF problématiques via `catch_unwind`
 - Support des formats texte, PDF et DOCX
 

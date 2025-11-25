@@ -45,7 +45,6 @@ pub struct RagProxyConfig {
     pub port: u16,
     pub host: String,
     pub chat_completion_endpoint: String,
-    pub system_message_fingerprint_length: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

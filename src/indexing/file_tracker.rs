@@ -30,18 +30,27 @@ impl FileTracker {
     }
 
     /// Loads tracking information from a JSON file
-    /// 
+    ///
     /// # Arguments
     /// * `file_path` - Path to the JSON file containing tracking information
-    /// 
+    ///
     /// # Returns
     /// * `Result<(), Box<dyn std::error::Error>>` - Ok if successful, error otherwise
     pub fn load_from_file(&mut self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         if Path::new(file_path).exists() {
             let content = fs::read_to_string(file_path)?;
             if !content.trim().is_empty() {
-                let tracker: FileTracker = serde_json::from_str(&content)?;
-                self.files = tracker.files;
+                // Try to deserialize the content
+                match serde_json::from_str::<FileTracker>(&content) {
+                    Ok(tracker) => {
+                        self.files = tracker.files;
+                    }
+                    Err(e) => {
+                        // If deserialization fails (e.g., due to empty object {}), log and continue with empty tracker
+                        tracing::warn!("Failed to deserialize tracker file '{}': {}. Starting with an empty tracker.", file_path, e);
+                        // self.files is already empty by default, so no action needed here
+                    }
+                }
             }
         }
         Ok(())
